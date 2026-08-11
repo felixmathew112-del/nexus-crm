@@ -10,8 +10,9 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
-import { Flame, Building2, MessageSquarePlus } from "lucide-react";
+import { Flame, Building2, MessageSquarePlus, ListTodo } from "lucide-react";
 import { ActivityModal } from "@/components/ActivityModal";
+import { TaskModal } from "@/components/TaskModal";
 
 type Stage = { id: string; name: string; order: number; color: string };
 type Deal = {
@@ -34,9 +35,11 @@ function formatValue(v: number) {
 function DealCard({
   deal,
   onLogActivity,
+  onLogTask,
 }: {
   deal: Deal;
   onLogActivity: (deal: Deal) => void;
+  onLogTask: (deal: Deal) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: deal.id,
@@ -75,6 +78,18 @@ function DealCard({
           >
             <MessageSquarePlus size={14} />
           </button>
+          <button
+            type="button"
+            title="Tasks"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onLogTask(deal);
+            }}
+            className="text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+          >
+            <ListTodo size={14} />
+          </button>
         </div>
       </div>
       <div className="flex items-center gap-1.5 mt-2 text-xs text-[var(--text-muted)]">
@@ -99,10 +114,12 @@ function StageColumn({
   stage,
   deals,
   onLogActivity,
+  onLogTask,
 }: {
   stage: Stage;
   deals: Deal[];
   onLogActivity: (deal: Deal) => void;
+  onLogTask: (deal: Deal) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const total = deals.reduce((sum, d) => sum + d.value, 0);
@@ -129,7 +146,7 @@ function StageColumn({
         }`}
       >
         {deals.map((d) => (
-          <DealCard key={d.id} deal={d} onLogActivity={onLogActivity} />
+          <DealCard key={d.id} deal={d} onLogActivity={onLogActivity} onLogTask={onLogTask} />
         ))}
         {deals.length === 0 && (
           <div className="text-xs text-[var(--text-muted)] text-center py-6">
@@ -146,6 +163,7 @@ export default function PipelineBoard() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
   const [activityDeal, setActivityDeal] = useState<Deal | null>(null);
+  const [taskDeal, setTaskDeal] = useState<Deal | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -202,11 +220,14 @@ export default function PipelineBoard() {
               stage={stage}
               deals={dealsByStage[stage.id] ?? []}
               onLogActivity={setActivityDeal}
+              onLogTask={setTaskDeal}
             />
           ))}
         </div>
         <DragOverlay>
-          {activeDeal ? <DealCard deal={activeDeal} onLogActivity={() => {}} /> : null}
+          {activeDeal ? (
+            <DealCard deal={activeDeal} onLogActivity={() => {}} onLogTask={() => {}} />
+          ) : null}
         </DragOverlay>
       </DndContext>
       {activityDeal && (
@@ -217,6 +238,15 @@ export default function PipelineBoard() {
           dealId={activityDeal.id}
           onClose={() => setActivityDeal(null)}
           onLogged={refreshDeals}
+        />
+      )}
+      {taskDeal && (
+        <TaskModal
+          title={taskDeal.title}
+          subtitle={taskDeal.contactCompany ?? taskDeal.contactName}
+          contactId={taskDeal.contactId}
+          dealId={taskDeal.id}
+          onClose={() => setTaskDeal(null)}
         />
       )}
     </>

@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
-import { Phone, Mail, Building2, MessageSquarePlus } from "lucide-react";
+import { Phone, Mail, Building2, MessageSquarePlus, ListTodo } from "lucide-react";
 import { ActivityModal } from "@/components/ActivityModal";
+import { TaskModal } from "@/components/TaskModal";
 
 type Contact = {
   id: string;
@@ -14,6 +15,7 @@ type Contact = {
 
 export default function ContactsTable({ contacts }: { contacts: Contact[] }) {
   const [activityContact, setActivityContact] = useState<Contact | null>(null);
+  const [taskContact, setTaskContact] = useState<Contact | null>(null);
 
   return (
     <>
@@ -63,14 +65,24 @@ export default function ContactsTable({ contacts }: { contacts: Contact[] }) {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    title="Activity history"
-                    onClick={() => setActivityContact(c)}
-                    className="text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
-                  >
-                    <MessageSquarePlus size={15} />
-                  </button>
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      title="Activity history"
+                      onClick={() => setActivityContact(c)}
+                      className="text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+                    >
+                      <MessageSquarePlus size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      title="Tasks"
+                      onClick={() => setTaskContact(c)}
+                      className="text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+                    >
+                      <ListTodo size={15} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -84,6 +96,14 @@ export default function ContactsTable({ contacts }: { contacts: Contact[] }) {
           subtitle={activityContact.company}
           contactId={activityContact.id}
           onClose={() => setActivityContact(null)}
+        />
+      )}
+      {taskContact && (
+        <TaskModal
+          title={taskContact.name}
+          subtitle={taskContact.company}
+          contactId={taskContact.id}
+          onClose={() => setTaskContact(null)}
         />
       )}
     </>
