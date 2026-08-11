@@ -10,7 +10,17 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
-import { Flame, Building2, MessageSquarePlus, ListTodo, Plus, X, Loader2 } from "lucide-react";
+import {
+  Flame,
+  Building2,
+  MessageSquarePlus,
+  ListTodo,
+  Plus,
+  X,
+  Loader2,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { ActivityModal } from "@/components/ActivityModal";
 import { TaskModal } from "@/components/TaskModal";
 
@@ -37,10 +47,14 @@ function DealCard({
   deal,
   onLogActivity,
   onLogTask,
+  onEdit,
+  onDelete,
 }: {
   deal: Deal;
   onLogActivity: (deal: Deal) => void;
   onLogTask: (deal: Deal) => void;
+  onEdit: (deal: Deal) => void;
+  onDelete: (deal: Deal) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: deal.id,
@@ -91,6 +105,30 @@ function DealCard({
           >
             <ListTodo size={14} />
           </button>
+          <button
+            type="button"
+            title="Edit deal"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(deal);
+            }}
+            className="text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+          >
+            <Pencil size={13} />
+          </button>
+          <button
+            type="button"
+            title="Delete deal"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(deal);
+            }}
+            className="text-[var(--text-muted)] hover:text-risk transition-colors"
+          >
+            <Trash2 size={13} />
+          </button>
         </div>
       </div>
       <div className="flex items-center gap-1.5 mt-2 text-xs text-[var(--text-muted)]">
@@ -116,11 +154,15 @@ function StageColumn({
   deals,
   onLogActivity,
   onLogTask,
+  onEdit,
+  onDelete,
 }: {
   stage: Stage;
   deals: Deal[];
   onLogActivity: (deal: Deal) => void;
   onLogTask: (deal: Deal) => void;
+  onEdit: (deal: Deal) => void;
+  onDelete: (deal: Deal) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const total = deals.reduce((sum, d) => sum + d.value, 0);
@@ -147,7 +189,14 @@ function StageColumn({
         }`}
       >
         {deals.map((d) => (
-          <DealCard key={d.id} deal={d} onLogActivity={onLogActivity} onLogTask={onLogTask} />
+          <DealCard
+            key={d.id}
+            deal={d}
+            onLogActivity={onLogActivity}
+            onLogTask={onLogTask}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
         ))}
         {deals.length === 0 && (
           <div className="text-xs text-[var(--text-muted)] text-center py-6">
@@ -159,22 +208,25 @@ function StageColumn({
   );
 }
 
-function NewDealModal({
+function DealFormModal({
+  deal,
   contacts,
   stages,
   onClose,
-  onCreated,
+  onSaved,
 }: {
+  deal?: Deal;
   contacts: Contact[];
   stages: Stage[];
   onClose: () => void;
-  onCreated: () => void;
+  onSaved: () => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [contactId, setContactId] = useState(contacts[0]?.id ?? "");
-  const [stageId, setStageId] = useState(stages[0]?.id ?? "");
-  const [value, setValue] = useState("");
-  const [expectedCloseDate, setExpectedCloseDate] = useState("");
+  const isEdit = Boolean(deal);
+  const [title, setTitle] = useState(deal?.title ?? "");
+  const [contactId, setContactId] = useState(deal?.contactId ?? contacts[0]?.id ?? "");
+  const [stageId, setStageId] = useState(deal?.stageId ?? stages[0]?.id ?? "");
+  const [value, setValue] = useState(deal ? String(deal.value) : "");
+  const [expectedCloseDate, setExpectedCloseDate] = useState(deal?.expectedCloseDate ?? "");
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = title.trim() && contactId && stageId;
@@ -183,8 +235,8 @@ function NewDealModal({
     e.preventDefault();
     if (!canSubmit || submitting) return;
     setSubmitting(true);
-    await fetch("/api/deals", {
-      method: "POST",
+    await fetch(isEdit ? `/api/deals/${deal!.id}` : "/api/deals", {
+      method: isEdit ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         title,
@@ -195,7 +247,7 @@ function NewDealModal({
       }),
     });
     setSubmitting(false);
-    onCreated();
+    onSaved();
   }
 
   return (
@@ -208,7 +260,9 @@ function NewDealModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-2 mb-4">
-          <h2 className="font-display text-sm font-semibold">New deal</h2>
+          <h2 className="font-display text-sm font-semibold">
+            {isEdit ? "Edit deal" : "New deal"}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -293,7 +347,7 @@ function NewDealModal({
             className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-[var(--accent)] text-[var(--bg)] text-sm font-medium py-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting && <Loader2 size={14} className="animate-spin" />}
-            Create deal
+            {isEdit ? "Save changes" : "Create deal"}
           </button>
         </form>
       </div>
@@ -309,11 +363,23 @@ export default function PipelineBoard() {
   const [activityDeal, setActivityDeal] = useState<Deal | null>(null);
   const [taskDeal, setTaskDeal] = useState<Deal | null>(null);
   const [showNewDeal, setShowNewDeal] = useState(false);
+  const [editDeal, setEditDeal] = useState<Deal | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   function refreshDeals() {
     fetch("/api/deals").then((r) => r.json()).then(setDeals);
+  }
+
+  async function handleDeleteDeal(deal: Deal) {
+    if (!window.confirm(`Delete "${deal.title}"? This can't be undone.`)) return;
+    const res = await fetch(`/api/deals/${deal.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      window.alert(body?.error ?? "Couldn't delete this deal.");
+      return;
+    }
+    setDeals((prev) => prev.filter((d) => d.id !== deal.id));
   }
 
   useEffect(() => {
@@ -378,12 +444,20 @@ export default function PipelineBoard() {
               deals={dealsByStage[stage.id] ?? []}
               onLogActivity={setActivityDeal}
               onLogTask={setTaskDeal}
+              onEdit={setEditDeal}
+              onDelete={handleDeleteDeal}
             />
           ))}
         </div>
         <DragOverlay>
           {activeDeal ? (
-            <DealCard deal={activeDeal} onLogActivity={() => {}} onLogTask={() => {}} />
+            <DealCard
+              deal={activeDeal}
+              onLogActivity={() => {}}
+              onLogTask={() => {}}
+              onEdit={() => {}}
+              onDelete={() => {}}
+            />
           ) : null}
         </DragOverlay>
       </DndContext>
@@ -407,12 +481,24 @@ export default function PipelineBoard() {
         />
       )}
       {showNewDeal && (
-        <NewDealModal
+        <DealFormModal
           contacts={contacts}
           stages={stages}
           onClose={() => setShowNewDeal(false)}
-          onCreated={() => {
+          onSaved={() => {
             setShowNewDeal(false);
+            refreshDeals();
+          }}
+        />
+      )}
+      {editDeal && (
+        <DealFormModal
+          deal={editDeal}
+          contacts={contacts}
+          stages={stages}
+          onClose={() => setEditDeal(null)}
+          onSaved={() => {
+            setEditDeal(null);
             refreshDeals();
           }}
         />

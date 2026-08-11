@@ -10,6 +10,8 @@ import {
   Search,
   X,
   Loader2,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { ActivityModal } from "@/components/ActivityModal";
 import { TaskModal } from "@/components/TaskModal";
@@ -25,26 +27,31 @@ type Contact = {
 
 const LEAD_SOURCES = ["referral", "website", "walk-in", "whatsapp"] as const;
 
-function NewContactModal({
+function ContactFormModal({
+  contact,
   onClose,
-  onCreated,
+  onSaved,
 }: {
+  contact?: Contact;
   onClose: () => void;
-  onCreated: (contact: Contact) => void;
+  onSaved: (contact: Contact) => void;
 }) {
-  const [name, setName] = useState("");
-  const [company, setCompany] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [source, setSource] = useState<(typeof LEAD_SOURCES)[number]>("referral");
+  const isEdit = Boolean(contact);
+  const [name, setName] = useState(contact?.name ?? "");
+  const [company, setCompany] = useState(contact?.company ?? "");
+  const [email, setEmail] = useState(contact?.email ?? "");
+  const [phone, setPhone] = useState(contact?.phone ?? "");
+  const [source, setSource] = useState<(typeof LEAD_SOURCES)[number]>(
+    (contact?.source as (typeof LEAD_SOURCES)[number]) ?? "referral"
+  );
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || submitting) return;
     setSubmitting(true);
-    const res = await fetch("/api/contacts", {
-      method: "POST",
+    const res = await fetch(isEdit ? `/api/contacts/${contact!.id}` : "/api/contacts", {
+      method: isEdit ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name,
@@ -54,9 +61,9 @@ function NewContactModal({
         source,
       }),
     });
-    const contact: Contact = await res.json();
+    const saved: Contact = await res.json();
     setSubmitting(false);
-    onCreated(contact);
+    onSaved(saved);
   }
 
   return (
@@ -69,7 +76,9 @@ function NewContactModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-2 mb-4">
-          <h2 className="font-display text-sm font-semibold">New contact</h2>
+          <h2 className="font-display text-sm font-semibold">
+            {isEdit ? "Edit contact" : "New contact"}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -146,7 +155,7 @@ function NewContactModal({
             className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-[var(--accent)] text-[var(--bg)] text-sm font-medium py-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting && <Loader2 size={14} className="animate-spin" />}
-            Add contact
+            {isEdit ? "Save changes" : "Add contact"}
           </button>
         </form>
       </div>
@@ -159,12 +168,29 @@ export default function ContactsTable({ contacts: initialContacts }: { contacts:
   const [activityContact, setActivityContact] = useState<Contact | null>(null);
   const [taskContact, setTaskContact] = useState<Contact | null>(null);
   const [showNewContact, setShowNewContact] = useState(false);
+  const [editContact, setEditContact] = useState<Contact | null>(null);
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
 
   function handleCreated(contact: Contact) {
     setContacts((prev) => [contact, ...prev]);
     setShowNewContact(false);
+  }
+
+  function handleEdited(contact: Contact) {
+    setContacts((prev) => prev.map((c) => (c.id === contact.id ? contact : c)));
+    setEditContact(null);
+  }
+
+  async function handleDelete(contact: Contact) {
+    if (!window.confirm(`Delete ${contact.name}? This can't be undone.`)) return;
+    const res = await fetch(`/api/contacts/${contact.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      window.alert(body?.error ?? "Couldn't delete this contact.");
+      return;
+    }
+    setContacts((prev) => prev.filter((c) => c.id !== contact.id));
   }
 
   const sourceOptions = useMemo(
@@ -290,6 +316,22 @@ export default function ContactsTable({ contacts: initialContacts }: { contacts:
                     >
                       <ListTodo size={15} />
                     </button>
+                    <button
+                      type="button"
+                      title="Edit contact"
+                      onClick={() => setEditContact(c)}
+                      className="text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      title="Delete contact"
+                      onClick={() => handleDelete(c)}
+                      className="text-[var(--text-muted)] hover:text-risk transition-colors"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -306,7 +348,14 @@ export default function ContactsTable({ contacts: initialContacts }: { contacts:
       </div>
 
       {showNewContact && (
-        <NewContactModal onClose={() => setShowNewContact(false)} onCreated={handleCreated} />
+        <ContactFormModal onClose={() => setShowNewContact(false)} onSaved={handleCreated} />
+      )}
+      {editContact && (
+        <ContactFormModal
+          contact={editContact}
+          onClose={() => setEditContact(null)}
+          onSaved={handleEdited}
+        />
       )}
       {activityContact && (
         <ActivityModal
