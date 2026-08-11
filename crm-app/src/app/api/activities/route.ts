@@ -3,6 +3,7 @@ import { activities, deals } from "@/db/schema";
 import { NextResponse } from "next/server";
 import { desc, eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -23,6 +24,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const body = await req.json();
   const newActivity = {
     id: randomUUID(),
@@ -30,7 +34,7 @@ export async function POST(req: Request) {
     dealId: body.dealId ?? null,
     type: body.type,
     content: body.content,
-    authorId: body.authorId ?? null,
+    authorId: user.id,
   };
   const [inserted] = await db.insert(activities).values(newActivity).returning();
 

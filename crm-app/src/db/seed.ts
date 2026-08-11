@@ -1,15 +1,28 @@
 import { db, sqlite } from "./index";
 import { contacts, stages, deals, tasks, activities, users } from "./schema";
 import { randomUUID } from "crypto";
+import { hashPassword } from "@/lib/password";
 
 function id() {
   return randomUUID();
 }
 
 async function seed() {
-  // Users
-  const alice = { id: id(), name: "Alice Menon", email: "alice@company.com", role: "manager" };
-  const ravi = { id: id(), name: "Ravi Nair", email: "ravi@company.com", role: "rep" };
+  // Users. Demo passwords - change these before any real deployment.
+  const alice = {
+    id: id(),
+    name: "Alice Menon",
+    email: "alice@company.com",
+    role: "manager",
+    passwordHash: hashPassword("alice123"),
+  };
+  const ravi = {
+    id: id(),
+    name: "Ravi Nair",
+    email: "ravi@company.com",
+    role: "rep",
+    passwordHash: hashPassword("ravi123"),
+  };
   await db.insert(users).values([alice, ravi]);
 
   // Default pipeline stages
