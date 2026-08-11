@@ -10,7 +10,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
-import { Flame, Building2, MessageSquarePlus, ListTodo } from "lucide-react";
+import { Flame, Building2, MessageSquarePlus, ListTodo, Plus, X, Loader2 } from "lucide-react";
 import { ActivityModal } from "@/components/ActivityModal";
 import { TaskModal } from "@/components/TaskModal";
 
@@ -26,6 +26,7 @@ type Deal = {
   expectedCloseDate: string | null;
   staleSince: string | null;
 };
+type Contact = { id: string; name: string; company: string | null };
 
 function formatValue(v: number) {
   if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
@@ -158,12 +159,156 @@ function StageColumn({
   );
 }
 
+function NewDealModal({
+  contacts,
+  stages,
+  onClose,
+  onCreated,
+}: {
+  contacts: Contact[];
+  stages: Stage[];
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [contactId, setContactId] = useState(contacts[0]?.id ?? "");
+  const [stageId, setStageId] = useState(stages[0]?.id ?? "");
+  const [value, setValue] = useState("");
+  const [expectedCloseDate, setExpectedCloseDate] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const canSubmit = title.trim() && contactId && stageId;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!canSubmit || submitting) return;
+    setSubmitting(true);
+    await fetch("/api/deals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title,
+        contactId,
+        stageId,
+        value: value ? Number(value) : 0,
+        expectedCloseDate: expectedCloseDate || null,
+      }),
+    });
+    setSubmitting(false);
+    onCreated();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-2 mb-4">
+          <h2 className="font-display text-sm font-semibold">New deal</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Kumar Builders - Bulk Order"
+              autoFocus
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Contact</label>
+            <select
+              value={contactId}
+              onChange={(e) => setContactId(e.target.value)}
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            >
+              {contacts.length === 0 && <option value="">No contacts yet</option>}
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.company ? ` — ${c.company}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Stage</label>
+            <select
+              value={stageId}
+              onChange={(e) => setStageId(e.target.value)}
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            >
+              {stages.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Value (₹)</label>
+            <input
+              type="number"
+              min="0"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="0"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">
+              Expected close date
+            </label>
+            <input
+              type="date"
+              value={expectedCloseDate}
+              onChange={(e) => setExpectedCloseDate(e.target.value)}
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={!canSubmit || submitting}
+            className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-[var(--accent)] text-[var(--bg)] text-sm font-medium py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting && <Loader2 size={14} className="animate-spin" />}
+            Create deal
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function PipelineBoard() {
   const [stages, setStages] = useState<Stage[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
   const [activityDeal, setActivityDeal] = useState<Deal | null>(null);
   const [taskDeal, setTaskDeal] = useState<Deal | null>(null);
+  const [showNewDeal, setShowNewDeal] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -173,6 +318,7 @@ export default function PipelineBoard() {
 
   useEffect(() => {
     fetch("/api/stages").then((r) => r.json()).then(setStages);
+    fetch("/api/contacts").then((r) => r.json()).then(setContacts);
     refreshDeals();
   }, []);
 
@@ -212,6 +358,17 @@ export default function PipelineBoard() {
 
   return (
     <>
+      <div className="flex justify-end mb-4">
+        <button
+          type="button"
+          onClick={() => setShowNewDeal(true)}
+          className="flex items-center gap-1.5 rounded-lg bg-[var(--accent)] text-[var(--bg)] text-sm font-medium px-3 py-2 hover:opacity-90 transition-opacity"
+        >
+          <Plus size={14} />
+          New deal
+        </button>
+      </div>
+
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex gap-4 overflow-x-auto pb-4">
           {stages.map((stage) => (
@@ -247,6 +404,17 @@ export default function PipelineBoard() {
           contactId={taskDeal.contactId}
           dealId={taskDeal.id}
           onClose={() => setTaskDeal(null)}
+        />
+      )}
+      {showNewDeal && (
+        <NewDealModal
+          contacts={contacts}
+          stages={stages}
+          onClose={() => setShowNewDeal(false)}
+          onCreated={() => {
+            setShowNewDeal(false);
+            refreshDeals();
+          }}
         />
       )}
     </>
