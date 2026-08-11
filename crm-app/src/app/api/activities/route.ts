@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { tasks } from "@/db/schema";
+import { activities, deals } from "@/db/schema";
 import { NextResponse } from "next/server";
 import { desc, eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
@@ -9,29 +9,37 @@ export async function GET(req: Request) {
   const dealId = searchParams.get("dealId");
   const contactId = searchParams.get("contactId");
   const condition = dealId
-    ? eq(tasks.dealId, dealId)
+    ? eq(activities.dealId, dealId)
     : contactId
-      ? eq(tasks.contactId, contactId)
+      ? eq(activities.contactId, contactId)
       : undefined;
 
   const rows = await db
     .select()
-    .from(tasks)
+    .from(activities)
     .where(condition)
-    .orderBy(desc(tasks.createdAt));
+    .orderBy(desc(activities.createdAt));
   return NextResponse.json(rows);
 }
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const newTask = {
+  const newActivity = {
     id: randomUUID(),
+    contactId: body.contactId,
     dealId: body.dealId ?? null,
-    contactId: body.contactId ?? null,
-    title: body.title,
-    dueDate: body.dueDate ?? null,
-    ownerId: body.ownerId ?? null,
+    type: body.type,
+    content: body.content,
+    authorId: body.authorId ?? null,
   };
-  const [inserted] = await db.insert(tasks).values(newTask).returning();
+  const [inserted] = await db.insert(activities).values(newActivity).returning();
+
+  if (newActivity.dealId) {
+    await db
+      .update(deals)
+      .set({ staleSince: null, updatedAt: new Date().toISOString() })
+      .where(eq(deals.id, newActivity.dealId));
+  }
+
   return NextResponse.json(inserted, { status: 201 });
 }
