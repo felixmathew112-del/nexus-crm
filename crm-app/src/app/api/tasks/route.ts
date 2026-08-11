@@ -3,6 +3,7 @@ import { tasks } from "@/db/schema";
 import { NextResponse } from "next/server";
 import { desc, eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -23,6 +24,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const body = await req.json();
   const newTask = {
     id: randomUUID(),
@@ -30,7 +34,7 @@ export async function POST(req: Request) {
     contactId: body.contactId ?? null,
     title: body.title,
     dueDate: body.dueDate ?? null,
-    ownerId: body.ownerId ?? null,
+    ownerId: user.id,
   };
   const [inserted] = await db.insert(tasks).values(newTask).returning();
   return NextResponse.json(inserted, { status: 201 });

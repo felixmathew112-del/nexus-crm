@@ -18,6 +18,17 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Login
+
+The app is behind auth. Demo accounts (seeded in `src/db/seed.ts`):
+
+| Email | Password |
+| --- | --- |
+| alice@company.com | alice123 |
+| ravi@company.com | ravi123 |
+
+Sessions are signed with `SESSION_SECRET` - set it as an environment variable before deploying anywhere real. Without it, a hardcoded dev-only fallback is used (see `src/lib/session.ts`).
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More

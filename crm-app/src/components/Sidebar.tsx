@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, Kanban, Users, CheckSquare } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { LayoutDashboard, Kanban, Users, CheckSquare, LogOut } from "lucide-react";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -10,8 +10,18 @@ const nav = [
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
 ];
 
-export default function Sidebar() {
+type CurrentUser = { id: string; name: string; email: string; role: string | null };
+
+export default function Sidebar({ user }: { user: CurrentUser }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  }
+
   return (
     <aside className="w-60 shrink-0 border-r border-[var(--border)] bg-[var(--surface)] flex flex-col h-screen sticky top-0">
       <div className="px-5 py-5 border-b border-[var(--border)]">
@@ -38,8 +48,21 @@ export default function Sidebar() {
           );
         })}
       </nav>
-      <div className="px-5 py-4 border-t border-[var(--border)] text-xs text-[var(--text-muted)]">
-        Built for HSJB client rollouts
+      <div className="px-5 py-4 border-t border-[var(--border)]">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-sm font-medium truncate">{user.name}</div>
+            <div className="text-xs text-[var(--text-muted)] truncate">{user.email}</div>
+          </div>
+          <button
+            type="button"
+            title="Log out"
+            onClick={handleLogout}
+            className="shrink-0 text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
       </div>
     </aside>
   );

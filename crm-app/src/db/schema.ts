@@ -65,4 +65,5 @@ export const users = sqliteTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   role: text("role").default("rep"), // rep | manager | admin
+  passwordHash: text("password_hash"), // salt:hash (scrypt) - null means login is disabled
 });

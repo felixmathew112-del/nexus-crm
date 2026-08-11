@@ -3,6 +3,7 @@ import { deals, contacts } from "@/db/schema";
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { getCurrentUser } from "@/lib/auth";
 
 export async function GET() {
   const rows = await db
@@ -23,6 +24,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const body = await req.json();
   const newDeal = {
     id: randomUUID(),
@@ -31,6 +35,7 @@ export async function POST(req: Request) {
     stageId: body.stageId,
     value: body.value ?? 0,
     expectedCloseDate: body.expectedCloseDate ?? null,
+    ownerId: user.id,
   };
   await db.insert(deals).values(newDeal);
   return NextResponse.json(newDeal, { status: 201 });
