@@ -10,7 +10,9 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
-import { Flame, Building2 } from "lucide-react";
+import { Flame, Building2, MessageSquarePlus, X, Loader2 } from "lucide-react";
+
+const ACTIVITY_TYPES = ["note", "call", "email", "whatsapp"] as const;
 
 type Stage = { id: string; name: string; order: number; color: string };
 type Deal = {
@@ -30,7 +32,13 @@ function formatValue(v: number) {
   return `₹${v.toLocaleString()}`;
 }
 
-function DealCard({ deal }: { deal: Deal }) {
+function DealCard({
+  deal,
+  onLogActivity,
+}: {
+  deal: Deal;
+  onLogActivity: (deal: Deal) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: deal.id,
   });
@@ -50,11 +58,25 @@ function DealCard({ deal }: { deal: Deal }) {
     >
       <div className="flex items-start justify-between gap-2">
         <div className="text-sm font-medium leading-snug">{deal.title}</div>
-        {deal.staleSince && (
-          <span title="No activity recently — at risk" className="shrink-0 text-risk">
-            <Flame size={14} />
-          </span>
-        )}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {deal.staleSince && (
+            <span title="No activity recently — at risk" className="text-risk">
+              <Flame size={14} />
+            </span>
+          )}
+          <button
+            type="button"
+            title="Log activity"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onLogActivity(deal);
+            }}
+            className="text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+          >
+            <MessageSquarePlus size={14} />
+          </button>
+        </div>
       </div>
       <div className="flex items-center gap-1.5 mt-2 text-xs text-[var(--text-muted)]">
         <Building2 size={12} />
@@ -77,9 +99,11 @@ function DealCard({ deal }: { deal: Deal }) {
 function StageColumn({
   stage,
   deals,
+  onLogActivity,
 }: {
   stage: Stage;
   deals: Deal[];
+  onLogActivity: (deal: Deal) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   const total = deals.reduce((sum, d) => sum + d.value, 0);
@@ -106,7 +130,7 @@ function StageColumn({
         }`}
       >
         {deals.map((d) => (
-          <DealCard key={d.id} deal={d} />
+          <DealCard key={d.id} deal={d} onLogActivity={onLogActivity} />
         ))}
         {deals.length === 0 && (
           <div className="text-xs text-[var(--text-muted)] text-center py-6">
@@ -118,16 +142,112 @@ function StageColumn({
   );
 }
 
+function LogActivityModal({
+  deal,
+  onClose,
+  onLogged,
+}: {
+  deal: Deal;
+  onClose: () => void;
+  onLogged: () => void;
+}) {
+  const [type, setType] = useState<(typeof ACTIVITY_TYPES)[number]>("note");
+  const [content, setContent] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!content.trim() || submitting) return;
+    setSubmitting(true);
+    await fetch("/api/activities", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dealId: deal.id, contactId: deal.contactId, type, content }),
+    });
+    setSubmitting(false);
+    onLogged();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-2 mb-4">
+          <div>
+            <h2 className="font-display text-sm font-semibold">Log activity</h2>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">{deal.title}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Type</label>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value as typeof type)}
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm capitalize outline-none focus:border-[var(--accent)]"
+            >
+              {ACTIVITY_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Notes</label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={3}
+              autoFocus
+              placeholder="What happened?"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)] resize-none"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={!content.trim() || submitting}
+            className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-[var(--accent)] text-[var(--bg)] text-sm font-medium py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting && <Loader2 size={14} className="animate-spin" />}
+            Log activity
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function PipelineBoard() {
   const [stages, setStages] = useState<Stage[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
+  const [activityDeal, setActivityDeal] = useState<Deal | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
+  function refreshDeals() {
+    fetch("/api/deals").then((r) => r.json()).then(setDeals);
+  }
+
   useEffect(() => {
     fetch("/api/stages").then((r) => r.json()).then(setStages);
-    fetch("/api/deals").then((r) => r.json()).then(setDeals);
+    refreshDeals();
   }, []);
 
   const dealsByStage = useMemo(() => {
@@ -165,13 +285,32 @@ export default function PipelineBoard() {
   }
 
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="flex gap-4 overflow-x-auto pb-4">
-        {stages.map((stage) => (
-          <StageColumn key={stage.id} stage={stage} deals={dealsByStage[stage.id] ?? []} />
-        ))}
-      </div>
-      <DragOverlay>{activeDeal ? <DealCard deal={activeDeal} /> : null}</DragOverlay>
-    </DndContext>
+    <>
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {stages.map((stage) => (
+            <StageColumn
+              key={stage.id}
+              stage={stage}
+              deals={dealsByStage[stage.id] ?? []}
+              onLogActivity={setActivityDeal}
+            />
+          ))}
+        </div>
+        <DragOverlay>
+          {activeDeal ? <DealCard deal={activeDeal} onLogActivity={() => {}} /> : null}
+        </DragOverlay>
+      </DndContext>
+      {activityDeal && (
+        <LogActivityModal
+          deal={activityDeal}
+          onClose={() => setActivityDeal(null)}
+          onLogged={() => {
+            setActivityDeal(null);
+            refreshDeals();
+          }}
+        />
+      )}
+    </>
   );
 }
