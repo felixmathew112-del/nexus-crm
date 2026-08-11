@@ -1,11 +1,16 @@
 import { db } from "@/db";
 import { activities, deals } from "@/db/schema";
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
-export async function GET() {
-  const rows = await db.select().from(activities);
+export async function GET(req: Request) {
+  const dealId = new URL(req.url).searchParams.get("dealId");
+  const rows = await db
+    .select()
+    .from(activities)
+    .where(dealId ? eq(activities.dealId, dealId) : undefined)
+    .orderBy(desc(activities.createdAt));
   return NextResponse.json(rows);
 }
 
@@ -19,7 +24,7 @@ export async function POST(req: Request) {
     content: body.content,
     authorId: body.authorId ?? null,
   };
-  await db.insert(activities).values(newActivity);
+  const [inserted] = await db.insert(activities).values(newActivity).returning();
 
   if (newActivity.dealId) {
     await db
@@ -28,5 +33,5 @@ export async function POST(req: Request) {
       .where(eq(deals.id, newActivity.dealId));
   }
 
-  return NextResponse.json(newActivity, { status: 201 });
+  return NextResponse.json(inserted, { status: 201 });
 }
