@@ -5,11 +5,19 @@ import { desc, eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export async function GET(req: Request) {
-  const dealId = new URL(req.url).searchParams.get("dealId");
+  const { searchParams } = new URL(req.url);
+  const dealId = searchParams.get("dealId");
+  const contactId = searchParams.get("contactId");
+  const condition = dealId
+    ? eq(activities.dealId, dealId)
+    : contactId
+      ? eq(activities.contactId, contactId)
+      : undefined;
+
   const rows = await db
     .select()
     .from(activities)
-    .where(dealId ? eq(activities.dealId, dealId) : undefined)
+    .where(condition)
     .orderBy(desc(activities.createdAt));
   return NextResponse.json(rows);
 }
