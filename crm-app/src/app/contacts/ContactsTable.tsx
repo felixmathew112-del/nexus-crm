@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Phone,
   Mail,
@@ -7,6 +7,7 @@ import {
   MessageSquarePlus,
   ListTodo,
   UserPlus,
+  Search,
   X,
   Loader2,
 } from "lucide-react";
@@ -158,19 +159,68 @@ export default function ContactsTable({ contacts: initialContacts }: { contacts:
   const [activityContact, setActivityContact] = useState<Contact | null>(null);
   const [taskContact, setTaskContact] = useState<Contact | null>(null);
   const [showNewContact, setShowNewContact] = useState(false);
+  const [search, setSearch] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("all");
 
   function handleCreated(contact: Contact) {
     setContacts((prev) => [contact, ...prev]);
     setShowNewContact(false);
   }
 
+  const sourceOptions = useMemo(
+    () => Array.from(new Set(contacts.map((c) => c.source ?? "unknown"))).sort(),
+    [contacts]
+  );
+
+  const filteredContacts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return contacts.filter((c) => {
+      if (sourceFilter !== "all" && (c.source ?? "unknown") !== sourceFilter) return false;
+      if (!q) return true;
+      return [c.name, c.company, c.email, c.phone].some((field) =>
+        field?.toLowerCase().includes(q)
+      );
+    });
+  }, [contacts, search, sourceFilter]);
+
   return (
     <>
-      <div className="flex justify-end mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-xs">
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+          />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name, company, email, phone…"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] pl-9 pr-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+          />
+        </div>
+
+        <select
+          value={sourceFilter}
+          onChange={(e) => setSourceFilter(e.target.value)}
+          className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm capitalize outline-none focus:border-[var(--accent)]"
+        >
+          <option value="all">All sources</option>
+          {sourceOptions.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+
+        <span className="text-xs text-[var(--text-muted)] sm:ml-1">
+          {filteredContacts.length} of {contacts.length}
+        </span>
+
         <button
           type="button"
           onClick={() => setShowNewContact(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-[var(--accent)] text-[var(--bg)] text-sm font-medium px-3 py-2 hover:opacity-90 transition-opacity"
+          className="sm:ml-auto flex items-center justify-center gap-1.5 rounded-lg bg-[var(--accent)] text-[var(--bg)] text-sm font-medium px-3 py-2 hover:opacity-90 transition-opacity"
         >
           <UserPlus size={14} />
           New contact
@@ -189,7 +239,7 @@ export default function ContactsTable({ contacts: initialContacts }: { contacts:
             </tr>
           </thead>
           <tbody>
-            {contacts.map((c, i) => (
+            {filteredContacts.map((c, i) => (
               <tr
                 key={c.id}
                 className={`border-t border-[var(--border)] ${
@@ -244,10 +294,10 @@ export default function ContactsTable({ contacts: initialContacts }: { contacts:
                 </td>
               </tr>
             ))}
-            {contacts.length === 0 && (
+            {filteredContacts.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">
-                  No contacts yet.
+                  {contacts.length === 0 ? "No contacts yet." : "No contacts match your search."}
                 </td>
               </tr>
             )}
