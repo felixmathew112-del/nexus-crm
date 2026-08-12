@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { getCurrentUser } from "@/lib/auth";
+import { notifyAssignment } from "@/lib/notify";
 
 export async function GET() {
   const rows = await db
@@ -39,5 +40,12 @@ export async function POST(req: Request) {
     ownerId: body.ownerId !== undefined ? body.ownerId : user.id,
   };
   await db.insert(deals).values(newDeal);
+  await notifyAssignment({
+    actingUserId: user.id,
+    newOwnerId: newDeal.ownerId,
+    type: "deal_assigned",
+    dealId: newDeal.id,
+    message: `${user.name} assigned you a new deal: ${newDeal.title}`,
+  });
   return NextResponse.json(newDeal, { status: 201 });
 }

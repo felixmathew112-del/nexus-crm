@@ -3,6 +3,7 @@ import { activities, deals, tasks } from "@/db/schema";
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { notifyAssignment } from "@/lib/notify";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
@@ -10,6 +11,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const { id } = await params;
   const body = await req.json();
+  const [existing] = await db.select().from(deals).where(eq(deals.id, id));
 
   const update: Record<string, unknown> = { updatedAt: new Date().toISOString() };
   if (body.title !== undefined) update.title = body.title;
@@ -26,6 +28,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const [updated] = await db.update(deals).set(update).where(eq(deals.id, id)).returning();
   if (!updated) return NextResponse.json({ error: "Deal not found" }, { status: 404 });
+
+  if (body.ownerId !== undefined && body.ownerId !== existing?.ownerId) {
+    await notifyAssignment({
+      actingUserId: user.id,
+      newOwnerId: body.ownerId,
+      type: "deal_assigned",
+      dealId: updated.id,
+      message: `${user.name} assigned you a deal: ${updated.title}`,
+    });
+  }
+
   return NextResponse.json(updated);
 }
 
