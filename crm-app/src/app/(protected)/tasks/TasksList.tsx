@@ -1,7 +1,19 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { CheckSquare, Square, Plus, X, Loader2, Trash2, Building2, Kanban } from "lucide-react";
+import {
+  CheckSquare,
+  Square,
+  Plus,
+  X,
+  Loader2,
+  Trash2,
+  Building2,
+  Kanban,
+  AlertTriangle,
+  Clock,
+} from "lucide-react";
 import { ScopeToggle, defaultScopeForRole, type Scope } from "@/components/ScopeToggle";
+import { getDueStatus } from "@/lib/dueStatus";
 
 type Task = {
   id: string;
@@ -253,9 +265,27 @@ export default function TasksList({
                 </div>
               )}
             </div>
-            {t.dueDate && (
-              <span className="text-xs text-[var(--text-muted)] shrink-0">{t.dueDate}</span>
-            )}
+            {t.dueDate && (() => {
+              const status = getDueStatus(t.dueDate, t.done);
+              return (
+                <span
+                  title={
+                    status === "overdue" ? "Overdue" : status === "today" ? "Due today" : undefined
+                  }
+                  className={`flex items-center gap-1 text-xs shrink-0 ${
+                    status === "overdue"
+                      ? "text-risk font-medium"
+                      : status === "today" || status === "soon"
+                        ? "text-[var(--accent)]"
+                        : "text-[var(--text-muted)]"
+                  }`}
+                >
+                  {status === "overdue" && <AlertTriangle size={12} />}
+                  {status === "today" && <Clock size={12} />}
+                  {t.dueDate}
+                </span>
+              );
+            })()}
             <button
               type="button"
               title="Delete task"
