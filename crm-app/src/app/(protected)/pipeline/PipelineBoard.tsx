@@ -31,6 +31,7 @@ type Deal = {
   ownerId: string | null;
 };
 type Contact = { id: string; name: string; company: string | null };
+type Owner = { id: string; name: string };
 type CurrentUser = { id: string; role: string | null };
 
 function formatValue(v: number) {
@@ -224,6 +225,7 @@ export default function PipelineBoard({ currentUser }: { currentUser: CurrentUse
   const [stages, setStages] = useState<Stage[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [owners, setOwners] = useState<Owner[]>([]);
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
   const [activityDeal, setActivityDeal] = useState<Deal | null>(null);
   const [taskDeal, setTaskDeal] = useState<Deal | null>(null);
@@ -251,6 +253,7 @@ export default function PipelineBoard({ currentUser }: { currentUser: CurrentUse
   useEffect(() => {
     fetch("/api/stages").then((r) => r.json()).then(setStages);
     fetch("/api/contacts").then((r) => r.json()).then(setContacts);
+    fetch("/api/users/basic").then((r) => r.json()).then(setOwners);
     refreshDeals();
   }, []);
 
@@ -358,6 +361,8 @@ export default function PipelineBoard({ currentUser }: { currentUser: CurrentUse
         <DealFormModal
           contacts={contacts}
           stages={stages}
+          users={owners}
+          currentUserId={currentUser.id}
           onClose={() => setShowNewDeal(false)}
           onSaved={() => {
             setShowNewDeal(false);
@@ -370,6 +375,8 @@ export default function PipelineBoard({ currentUser }: { currentUser: CurrentUse
           deal={editDeal}
           contacts={contacts}
           stages={stages}
+          users={owners}
+          currentUserId={currentUser.id}
           onClose={() => setEditDeal(null)}
           onSaved={() => {
             setEditDeal(null);

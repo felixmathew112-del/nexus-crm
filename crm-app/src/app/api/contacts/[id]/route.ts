@@ -18,6 +18,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       email: body.email ?? null,
       phone: body.phone ?? null,
       source: body.source ?? null,
+      ownerId: body.ownerId ?? null,
     })
     .where(eq(contacts.id, id))
     .returning();

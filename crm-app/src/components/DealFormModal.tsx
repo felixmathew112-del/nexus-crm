@@ -9,9 +9,11 @@ export type DealFormDeal = {
   stageId: string;
   contactId: string;
   expectedCloseDate: string | null;
+  ownerId?: string | null;
 };
 type Contact = { id: string; name: string; company: string | null };
 type Stage = { id: string; name: string };
+type OwnerOption = { id: string; name: string };
 
 // Create/edit form for a deal, shared between the pipeline board's quick
 // actions and the deal detail page. Pass `deal` to edit (PATCHes); omit it
@@ -20,12 +22,16 @@ export function DealFormModal({
   deal,
   contacts,
   stages,
+  users,
+  currentUserId,
   onClose,
   onSaved,
 }: {
   deal?: DealFormDeal;
   contacts: Contact[];
   stages: Stage[];
+  users: OwnerOption[];
+  currentUserId: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -35,6 +41,7 @@ export function DealFormModal({
   const [stageId, setStageId] = useState(deal?.stageId ?? stages[0]?.id ?? "");
   const [value, setValue] = useState(deal ? String(deal.value) : "");
   const [expectedCloseDate, setExpectedCloseDate] = useState(deal?.expectedCloseDate ?? "");
+  const [ownerId, setOwnerId] = useState(deal?.ownerId ?? currentUserId);
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = title.trim() && contactId && stageId;
@@ -52,6 +59,7 @@ export function DealFormModal({
         stageId,
         value: value ? Number(value) : 0,
         expectedCloseDate: expectedCloseDate || null,
+        ownerId: ownerId || null,
       }),
     });
     setSubmitting(false);
@@ -147,6 +155,22 @@ export function DealFormModal({
               onChange={(e) => setExpectedCloseDate(e.target.value)}
               className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Owner</label>
+            <select
+              value={ownerId}
+              onChange={(e) => setOwnerId(e.target.value)}
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            >
+              <option value="">Unassigned</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.id === currentUserId ? `${u.name} (you)` : u.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <button

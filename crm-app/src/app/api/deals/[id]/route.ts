@@ -16,6 +16,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (body.contactId !== undefined) update.contactId = body.contactId;
   if (body.value !== undefined) update.value = body.value;
   if (body.expectedCloseDate !== undefined) update.expectedCloseDate = body.expectedCloseDate;
+  if (body.ownerId !== undefined) update.ownerId = body.ownerId;
   if (body.stageId !== undefined) {
     update.stageId = body.stageId;
     // A stage move counts as engagement with the deal - clear the at-risk flag.
