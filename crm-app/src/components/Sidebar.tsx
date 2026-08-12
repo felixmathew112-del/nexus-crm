@@ -63,7 +63,7 @@ export default function Sidebar({ user }: { user: CurrentUser }) {
             <div className="text-xs text-[var(--text-muted)] truncate">{user.email}</div>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <NotificationsBell />
+            <NotificationsBell userId={user.id} />
             <button
               type="button"
               title="Log out"
