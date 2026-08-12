@@ -19,6 +19,7 @@ export async function GET() {
       expectedCloseDate: deals.expectedCloseDate,
       staleSince: deals.staleSince,
       ownerId: deals.ownerId,
+      lostReason: deals.lostReason,
     })
     .from(deals)
     .leftJoin(contacts, eq(deals.contactId, contacts.id));
@@ -38,6 +39,7 @@ export async function POST(req: Request) {
     value: body.value ?? 0,
     expectedCloseDate: body.expectedCloseDate ?? null,
     ownerId: body.ownerId !== undefined ? body.ownerId : user.id,
+    lostReason: body.lostReason ?? null,
   };
   await db.insert(deals).values(newDeal);
   await notifyAssignment({

@@ -11,10 +11,10 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
-import { Flame, Building2, MessageSquarePlus, ListTodo, Plus, Pencil, Trash2 } from "lucide-react";
+import { Flame, Building2, MessageSquarePlus, ListTodo, Plus, Pencil, Trash2, X } from "lucide-react";
 import { ActivityModal } from "@/components/ActivityModal";
 import { TaskModal } from "@/components/TaskModal";
-import { DealFormModal } from "@/components/DealFormModal";
+import { DealFormModal, LOST_REASONS } from "@/components/DealFormModal";
 import { ScopeToggle, defaultScopeForRole, type Scope } from "@/components/ScopeToggle";
 
 type Stage = { id: string; name: string; order: number; color: string };
@@ -29,6 +29,7 @@ type Deal = {
   expectedCloseDate: string | null;
   staleSince: string | null;
   ownerId: string | null;
+  lostReason: string | null;
 };
 type Contact = { id: string; name: string; company: string | null };
 type Owner = { id: string; name: string };
@@ -220,6 +221,64 @@ function StageColumn({
   );
 }
 
+function LostReasonModal({
+  dealTitle,
+  onClose,
+  onConfirm,
+}: {
+  dealTitle: string;
+  onClose: () => void;
+  onConfirm: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState<(typeof LOST_REASONS)[number] | "">("");
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-2 mb-4">
+          <h2 className="font-display text-sm font-semibold">Why was &quot;{dealTitle}&quot; lost?</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <select
+          value={reason}
+          onChange={(e) => setReason(e.target.value as typeof reason)}
+          autoFocus
+          className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm capitalize outline-none focus:border-[var(--accent)] mb-3"
+        >
+          <option value="">Select a reason…</option>
+          {LOST_REASONS.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          disabled={!reason}
+          onClick={() => reason && onConfirm(reason)}
+          className="w-full rounded-lg bg-[var(--accent)] text-[var(--bg)] text-sm font-medium py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Mark as lost
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function PipelineBoard({ currentUser }: { currentUser: CurrentUser }) {
   const router = useRouter();
   const [stages, setStages] = useState<Stage[]>([]);
@@ -232,6 +291,11 @@ export default function PipelineBoard({ currentUser }: { currentUser: CurrentUse
   const [showNewDeal, setShowNewDeal] = useState(false);
   const [editDeal, setEditDeal] = useState<Deal | null>(null);
   const [scope, setScope] = useState<Scope>(() => defaultScopeForRole(currentUser.role));
+  const [pendingLostDeal, setPendingLostDeal] = useState<{ deal: Deal; stageId: string } | null>(
+    null
+  );
+
+  const lostStageId = useMemo(() => stages.find((s) => s.name === "Lost")?.id, [stages]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -277,7 +341,22 @@ export default function PipelineBoard({ currentUser }: { currentUser: CurrentUse
     setActiveDeal(deal ?? null);
   }
 
-  async function handleDragEnd(event: DragEndEvent) {
+  async function moveDealToStage(dealId: string, stageId: string, lostReason?: string) {
+    setDeals((prev) =>
+      prev.map((d) =>
+        d.id === dealId
+          ? { ...d, stageId, staleSince: null, lostReason: lostReason ?? null }
+          : d
+      )
+    );
+    await fetch(`/api/deals/${dealId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stageId, lostReason: lostReason ?? null }),
+    });
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     setActiveDeal(null);
     if (!over) return;
@@ -286,14 +365,11 @@ export default function PipelineBoard({ currentUser }: { currentUser: CurrentUse
     const deal = deals.find((d) => d.id === dealId);
     if (!deal || deal.stageId === newStageId) return;
 
-    setDeals((prev) =>
-      prev.map((d) => (d.id === dealId ? { ...d, stageId: newStageId, staleSince: null } : d))
-    );
-    await fetch(`/api/deals/${dealId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stageId: newStageId }),
-    });
+    if (lostStageId && newStageId === lostStageId) {
+      setPendingLostDeal({ deal, stageId: newStageId });
+      return;
+    }
+    moveDealToStage(dealId, newStageId);
   }
 
   return (
@@ -338,6 +414,16 @@ export default function PipelineBoard({ currentUser }: { currentUser: CurrentUse
           ) : null}
         </DragOverlay>
       </DndContext>
+      {pendingLostDeal && (
+        <LostReasonModal
+          dealTitle={pendingLostDeal.deal.title}
+          onClose={() => setPendingLostDeal(null)}
+          onConfirm={(reason) => {
+            moveDealToStage(pendingLostDeal.deal.id, pendingLostDeal.stageId, reason);
+            setPendingLostDeal(null);
+          }}
+        />
+      )}
       {activityDeal && (
         <ActivityModal
           title={activityDeal.title}

@@ -9,6 +9,7 @@ type Deal = {
   value: number | null;
   stageId: string;
   ownerId: string | null;
+  lostReason: string | null;
 };
 type Stage = { id: string; name: string; order: number; color: string };
 type User = { id: string; name: string };
@@ -66,6 +67,21 @@ export default function ReportsView({
   const openValue = scopedDeals
     .filter((d) => d.stageId !== wonStage?.id && d.stageId !== lostStage?.id)
     .reduce((sum, d) => sum + (d.value ?? 0), 0);
+
+  const lostReasonKeys = useMemo(
+    () => Array.from(new Set(lostDeals.map((d) => d.lostReason ?? "unspecified"))),
+    [lostDeals]
+  );
+  const lostReasonBreakdown = useMemo(
+    () =>
+      lostReasonKeys
+        .map((reason) => ({
+          reason,
+          count: lostDeals.filter((d) => (d.lostReason ?? "unspecified") === reason).length,
+        }))
+        .sort((a, b) => b.count - a.count),
+    [lostReasonKeys, lostDeals]
+  );
 
   const ownerKeys = useMemo(
     () => Array.from(new Set(scopedDeals.map((d) => d.ownerId ?? "unassigned"))),
@@ -158,6 +174,30 @@ export default function ReportsView({
           ))}
         </div>
       </div>
+
+      {lostDeals.length > 0 && (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 mb-6">
+          <h2 className="font-display text-sm font-semibold mb-4">Lost reasons</h2>
+          <div className="space-y-2.5">
+            {lostReasonBreakdown.map(({ reason, count }) => (
+              <div key={reason} className="flex items-center gap-3">
+                <span className="w-28 shrink-0 text-xs text-[var(--text-muted)] capitalize truncate">
+                  {reason}
+                </span>
+                <div className="flex-1 h-6 rounded bg-[var(--surface-raised)] overflow-hidden">
+                  <div
+                    className="h-full rounded bg-risk transition-all"
+                    style={{ width: `${(count / lostDeals.length) * 100}%`, minWidth: "6px" }}
+                  />
+                </div>
+                <span className="w-10 shrink-0 text-right text-xs text-[var(--text-muted)]">
+                  {count}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!mine && (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
