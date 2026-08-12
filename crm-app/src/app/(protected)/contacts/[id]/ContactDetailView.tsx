@@ -11,6 +11,10 @@ import {
   Pencil,
   Trash2,
   User as UserIcon,
+  Merge,
+  X,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { ActivityPanel } from "@/components/ActivityModal";
 import { TaskPanel } from "@/components/TaskModal";
@@ -43,20 +47,124 @@ function formatValue(v: number) {
   return `₹${v.toLocaleString()}`;
 }
 
+function MergeContactModal({
+  winner,
+  otherContacts,
+  onClose,
+  onMerged,
+}: {
+  winner: Contact;
+  otherContacts: Contact[];
+  onClose: () => void;
+  onMerged: (mergedWinner: Contact) => void;
+}) {
+  const [loserId, setLoserId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const loser = otherContacts.find((c) => c.id === loserId);
+
+  async function handleConfirm() {
+    if (!loserId || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    const res = await fetch(`/api/contacts/${winner.id}/merge`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ loserId }),
+    });
+    const body = await res.json();
+    setSubmitting(false);
+    if (!res.ok) {
+      setError(body?.error ?? "Couldn't merge these contacts.");
+      return;
+    }
+    onMerged(body);
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-2 mb-4">
+          <h2 className="font-display text-sm font-semibold">Merge into {winner.name}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <label className="block text-xs text-[var(--text-muted)] mb-1.5">
+          Duplicate contact to merge in
+        </label>
+        <select
+          value={loserId}
+          onChange={(e) => setLoserId(e.target.value)}
+          autoFocus
+          className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)] mb-3"
+        >
+          <option value="">Select a contact…</option>
+          {otherContacts.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+              {c.company ? ` — ${c.company}` : ""}
+            </option>
+          ))}
+        </select>
+
+        {loser && (
+          <div className="flex items-start gap-2 rounded-lg border border-risk/30 bg-risk/10 px-3 py-2 text-xs text-risk mb-3">
+            <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+            <span>
+              {loser.name}&apos;s deals, activity, and tasks move to {winner.name}, and{" "}
+              {loser.name} is deleted. This can&apos;t be undone.
+            </span>
+          </div>
+        )}
+        {error && <p className="text-xs text-risk mb-3">{error}</p>}
+
+        <button
+          type="button"
+          disabled={!loserId || submitting}
+          onClick={handleConfirm}
+          className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-[var(--accent)] text-[var(--bg)] text-sm font-medium py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {submitting && <Loader2 size={14} className="animate-spin" />}
+          Merge contacts
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function ContactDetailView({
   contact: initialContact,
   deals,
   currentUserId,
+  currentUserRole,
 }: {
   contact: Contact;
   deals: Deal[];
   currentUserId: string;
+  currentUserRole: string | null;
 }) {
   const router = useRouter();
   const [contact, setContact] = useState(initialContact);
   const [owners, setOwners] = useState<Owner[]>([]);
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [showEdit, setShowEdit] = useState(false);
+  const [showMerge, setShowMerge] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const isManager = currentUserRole === "manager" || currentUserRole === "admin";
 
   useEffect(() => {
     fetch("/api/users/basic").then((r) => r.json()).then(setOwners);
@@ -71,6 +179,13 @@ export default function ContactDetailView({
   function handleSaved(updated: ContactFormContact) {
     setContact(updated);
     setShowEdit(false);
+  }
+
+  function handleMerged(mergedWinner: Contact) {
+    setContact(mergedWinner);
+    setShowMerge(false);
+    setRefreshKey((k) => k + 1);
+    router.refresh();
   }
 
   async function handleDelete() {
@@ -105,6 +220,16 @@ export default function ContactDetailView({
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {isManager && (
+            <button
+              type="button"
+              onClick={() => setShowMerge(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] text-sm px-3 py-2 hover:border-[var(--accent)]/50 transition-colors"
+            >
+              <Merge size={14} />
+              Merge
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setShowEdit(true)}
@@ -208,10 +333,10 @@ export default function ContactDetailView({
 
       <div className="grid md:grid-cols-2 gap-6">
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <ActivityPanel contactId={contact.id} />
+          <ActivityPanel key={refreshKey} contactId={contact.id} />
         </div>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
-          <TaskPanel contactId={contact.id} />
+          <TaskPanel key={refreshKey} contactId={contact.id} />
         </div>
       </div>
 
@@ -223,6 +348,14 @@ export default function ContactDetailView({
           currentUserId={currentUserId}
           onClose={() => setShowEdit(false)}
           onSaved={handleSaved}
+        />
+      )}
+      {showMerge && (
+        <MergeContactModal
+          winner={contact}
+          otherContacts={allContacts.filter((c) => c.id !== contact.id)}
+          onClose={() => setShowMerge(false)}
+          onMerged={handleMerged}
         />
       )}
     </div>
