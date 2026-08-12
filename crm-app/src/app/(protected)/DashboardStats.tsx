@@ -1,6 +1,8 @@
 "use client";
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { TrendingUp, Flame, Users, ListTodo, AlertTriangle, Clock } from "lucide-react";
+import { format } from "date-fns";
 import { ScopeToggle, defaultScopeForRole, type Scope } from "@/components/ScopeToggle";
 import { getDueStatus } from "@/lib/dueStatus";
 
@@ -21,6 +23,18 @@ type Task = {
   ownerId: string | null;
 };
 type Stage = { id: string; name: string };
+type User = { id: string; name: string };
+type Activity = {
+  id: string;
+  type: string;
+  content: string;
+  createdAt: string | null;
+  authorId: string | null;
+  contactId: string | null;
+  dealId: string | null;
+  contactName: string | null;
+  dealTitle: string | null;
+};
 type CurrentUser = { id: string; role: string | null };
 
 function formatValue(v: number) {
@@ -33,16 +47,27 @@ export default function DashboardStats({
   contacts,
   tasks,
   stages,
+  users,
+  activities,
   currentUser,
 }: {
   deals: Deal[];
   contacts: Contact[];
   tasks: Task[];
   stages: Stage[];
+  users: User[];
+  activities: Activity[];
   currentUser: CurrentUser;
 }) {
   const [scope, setScope] = useState<Scope>(() => defaultScopeForRole(currentUser.role));
   const mine = scope === "mine";
+
+  const userMap = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u.name])), [users]);
+
+  const scopedActivities = useMemo(
+    () => (mine ? activities.filter((a) => a.authorId === currentUser.id) : activities),
+    [activities, mine, currentUser.id]
+  );
 
   const stats = useMemo(() => {
     const scopedDeals = mine ? deals.filter((d) => d.ownerId === currentUser.id) : deals;
@@ -180,6 +205,59 @@ export default function DashboardStats({
                 >
                   {status === "overdue" ? "Overdue" : "Due today"}
                 </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 mt-6">
+        <h2 className="font-display text-sm font-semibold mb-4">
+          {mine ? "Your recent activity" : "Team activity"}
+        </h2>
+        <div className="space-y-2">
+          {scopedActivities.length === 0 && (
+            <p className="text-sm text-[var(--text-muted)]">Nothing logged yet.</p>
+          )}
+          {scopedActivities.map((a) => {
+            const href = a.dealId
+              ? `/deals/${a.dealId}`
+              : a.contactId
+                ? `/contacts/${a.contactId}`
+                : null;
+            const target = a.dealTitle ?? a.contactName;
+            return (
+              <div
+                key={a.id}
+                className="rounded-lg border border-[var(--border)] px-4 py-2.5"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xs font-medium capitalize text-[var(--accent)] shrink-0">
+                      {a.type.replace("_", " ")}
+                    </span>
+                    <span className="text-xs text-[var(--text-muted)] truncate">
+                      {a.authorId ? userMap[a.authorId] ?? "Unknown" : "Unknown"}
+                      {target && (
+                        <>
+                          {" "}
+                          on{" "}
+                          {href ? (
+                            <Link href={href} className="hover:text-[var(--accent)] hover:underline">
+                              {target}
+                            </Link>
+                          ) : (
+                            target
+                          )}
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-[var(--text-muted)] shrink-0">
+                    {a.createdAt ? format(new Date(a.createdAt), "MMM d, h:mm a") : ""}
+                  </span>
+                </div>
+                <p className="text-sm mt-1 truncate">{a.content}</p>
               </div>
             );
           })}
