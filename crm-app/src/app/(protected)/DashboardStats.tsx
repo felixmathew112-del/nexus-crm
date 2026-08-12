@@ -1,7 +1,8 @@
 "use client";
 import { useMemo, useState } from "react";
-import { TrendingUp, Flame, Users, ListTodo } from "lucide-react";
+import { TrendingUp, Flame, Users, ListTodo, AlertTriangle, Clock } from "lucide-react";
 import { ScopeToggle, defaultScopeForRole, type Scope } from "@/components/ScopeToggle";
+import { getDueStatus } from "@/lib/dueStatus";
 
 type Deal = {
   id: string;
@@ -12,7 +13,13 @@ type Deal = {
   staleSince: string | null;
 };
 type Contact = { id: string; ownerId: string | null };
-type Task = { id: string; done: boolean | null; ownerId: string | null };
+type Task = {
+  id: string;
+  title: string;
+  dueDate: string | null;
+  done: boolean | null;
+  ownerId: string | null;
+};
 type Stage = { id: string; name: string };
 type CurrentUser = { id: string; role: string | null };
 
@@ -50,8 +57,14 @@ export default function DashboardStats({
     const pipelineValue = openDeals.reduce((sum, d) => sum + (d.value ?? 0), 0);
     const staleDeals = scopedDeals.filter((d) => d.staleSince);
     const openTasks = scopedTasks.filter((t) => !t.done);
+    const dueTasks = openTasks
+      .filter((t) => {
+        const status = getDueStatus(t.dueDate, t.done);
+        return status === "overdue" || status === "today";
+      })
+      .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
 
-    return { openDeals, pipelineValue, staleDeals, openTasks, scopedContacts };
+    return { openDeals, pipelineValue, staleDeals, openTasks, dueTasks, scopedContacts };
   }, [deals, contacts, tasks, stages, mine, currentUser.id]);
 
   const stageMap = useMemo(() => Object.fromEntries(stages.map((s) => [s.id, s])), [stages]);
@@ -134,6 +147,42 @@ export default function DashboardStats({
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 mt-6">
+        <h2 className="font-display text-sm font-semibold mb-4">Tasks due soon</h2>
+        <div className="space-y-2">
+          {stats.dueTasks.length === 0 && (
+            <p className="text-sm text-[var(--text-muted)]">
+              Nothing overdue or due today — good sign.
+            </p>
+          )}
+          {stats.dueTasks.map((t) => {
+            const status = getDueStatus(t.dueDate, t.done);
+            return (
+              <div
+                key={t.id}
+                className="flex items-center justify-between rounded-lg border border-[var(--border)] px-4 py-2.5"
+              >
+                <div className="flex items-center gap-2">
+                  {status === "overdue" ? (
+                    <AlertTriangle size={14} className="text-risk" />
+                  ) : (
+                    <Clock size={14} className="text-[var(--accent)]" />
+                  )}
+                  <span className="text-sm">{t.title}</span>
+                </div>
+                <span
+                  className={`text-xs font-medium ${
+                    status === "overdue" ? "text-risk" : "text-[var(--accent)]"
+                  }`}
+                >
+                  {status === "overdue" ? "Overdue" : "Due today"}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </>
