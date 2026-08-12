@@ -83,22 +83,17 @@ function ActivityForm({
   );
 }
 
-// Shows an entity's activity timeline (a deal's or a contact's) with the
-// log-activity form above it. Pass dealId to scope to one deal; omit it to
-// scope to everything logged against the contact.
-export function ActivityModal({
-  title,
-  subtitle,
+// The log-activity form plus the resulting timeline, with no modal chrome -
+// usable standalone on a page, or wrapped in ActivityModal's overlay. Pass
+// dealId to scope to one deal; omit it to scope to everything logged
+// against the contact.
+export function ActivityPanel({
   contactId,
   dealId,
-  onClose,
   onLogged,
 }: {
-  title: string;
-  subtitle?: string | null;
   contactId: string;
   dealId?: string | null;
-  onClose: () => void;
   onLogged?: () => void;
 }) {
   const [activities, setActivities] = useState<Activity[] | null>(null);
@@ -115,6 +110,56 @@ export function ActivityModal({
     onLogged?.();
   }
 
+  return (
+    <>
+      <ActivityForm contactId={contactId} dealId={dealId} onLogged={handleLogged} />
+
+      <h3 className="font-display text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mt-5 mb-2">
+        Activity history
+      </h3>
+      <div className="space-y-2">
+        {activities === null && <p className="text-xs text-[var(--text-muted)]">Loading…</p>}
+        {activities?.length === 0 && (
+          <p className="text-xs text-[var(--text-muted)]">No activity logged yet.</p>
+        )}
+        {activities?.map((a) => (
+          <div
+            key={a.id}
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium capitalize text-[var(--accent)]">
+                {a.type.replace("_", " ")}
+              </span>
+              <span className="text-[10px] text-[var(--text-muted)] shrink-0">
+                {a.createdAt ? format(new Date(a.createdAt), "MMM d, h:mm a") : ""}
+              </span>
+            </div>
+            <p className="text-sm mt-1 whitespace-pre-wrap">{a.content}</p>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// Modal wrapper around ActivityPanel, for quick-action use from a board/
+// table row without navigating away.
+export function ActivityModal({
+  title,
+  subtitle,
+  contactId,
+  dealId,
+  onClose,
+  onLogged,
+}: {
+  title: string;
+  subtitle?: string | null;
+  contactId: string;
+  dealId?: string | null;
+  onClose: () => void;
+  onLogged?: () => void;
+}) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -138,36 +183,8 @@ export function ActivityModal({
           </button>
         </div>
 
-        <div className="shrink-0">
-          <ActivityForm contactId={contactId} dealId={dealId} onLogged={handleLogged} />
-        </div>
-
-        <h3 className="font-display text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mt-5 mb-2 shrink-0">
-          Activity history
-        </h3>
-        <div className="flex-1 overflow-y-auto space-y-2 pr-0.5">
-          {activities === null && (
-            <p className="text-xs text-[var(--text-muted)]">Loading…</p>
-          )}
-          {activities?.length === 0 && (
-            <p className="text-xs text-[var(--text-muted)]">No activity logged yet.</p>
-          )}
-          {activities?.map((a) => (
-            <div
-              key={a.id}
-              className="rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium capitalize text-[var(--accent)]">
-                  {a.type.replace("_", " ")}
-                </span>
-                <span className="text-[10px] text-[var(--text-muted)] shrink-0">
-                  {a.createdAt ? format(new Date(a.createdAt), "MMM d, h:mm a") : ""}
-                </span>
-              </div>
-              <p className="text-sm mt-1 whitespace-pre-wrap">{a.content}</p>
-            </div>
-          ))}
+        <div className="flex-1 overflow-y-auto pr-0.5">
+          <ActivityPanel contactId={contactId} dealId={dealId} onLogged={onLogged} />
         </div>
       </div>
     </div>

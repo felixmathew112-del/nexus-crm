@@ -82,22 +82,16 @@ function TaskForm({
   );
 }
 
-// Shows the tasks tied to a deal or contact with the add-task form above
-// them. Pass dealId to scope to one deal; omit it to scope to everything
-// tied to the contact directly.
-export function TaskModal({
-  title,
-  subtitle,
+// The add-task form plus the resulting list, with no modal chrome - usable
+// standalone on a page, or wrapped in TaskModal's overlay. Pass dealId to
+// scope to one deal; omit it to scope to everything tied to the contact.
+export function TaskPanel({
   contactId,
   dealId,
-  onClose,
   onChanged,
 }: {
-  title: string;
-  subtitle?: string | null;
   contactId?: string | null;
   dealId?: string | null;
-  onClose: () => void;
   onChanged?: () => void;
 }) {
   const [tasks, setTasks] = useState<Task[] | null>(null);
@@ -126,6 +120,60 @@ export function TaskModal({
   }
 
   return (
+    <>
+      <TaskForm contactId={contactId} dealId={dealId} onCreated={handleCreated} />
+
+      <h3 className="font-display text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mt-5 mb-2">
+        Tasks
+      </h3>
+      <div className="space-y-2">
+        {tasks === null && <p className="text-xs text-[var(--text-muted)]">Loading…</p>}
+        {tasks?.length === 0 && <p className="text-xs text-[var(--text-muted)]">No tasks yet.</p>}
+        {tasks?.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => toggleDone(t)}
+            className="w-full flex items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-left hover:border-[var(--accent)]/50 transition-colors"
+          >
+            {t.done ? (
+              <CheckSquare size={15} className="text-success shrink-0" />
+            ) : (
+              <Square size={15} className="text-[var(--text-muted)] shrink-0" />
+            )}
+            <span
+              className={`flex-1 text-sm ${t.done ? "line-through text-[var(--text-muted)]" : ""}`}
+            >
+              {t.title}
+            </span>
+            {t.dueDate && (
+              <span className="text-[10px] text-[var(--text-muted)] shrink-0">{t.dueDate}</span>
+            )}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// Modal wrapper around TaskPanel, for quick-action use from a board/table
+// row without navigating away.
+export function TaskModal({
+  title,
+  subtitle,
+  contactId,
+  dealId,
+  onClose,
+  onChanged,
+}: {
+  title: string;
+  subtitle?: string | null;
+  contactId?: string | null;
+  dealId?: string | null;
+  onClose: () => void;
+  onChanged?: () => void;
+}) {
+  return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       onClick={onClose}
@@ -148,40 +196,8 @@ export function TaskModal({
           </button>
         </div>
 
-        <div className="shrink-0">
-          <TaskForm contactId={contactId} dealId={dealId} onCreated={handleCreated} />
-        </div>
-
-        <h3 className="font-display text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide mt-5 mb-2 shrink-0">
-          Tasks
-        </h3>
-        <div className="flex-1 overflow-y-auto space-y-2 pr-0.5">
-          {tasks === null && <p className="text-xs text-[var(--text-muted)]">Loading…</p>}
-          {tasks?.length === 0 && (
-            <p className="text-xs text-[var(--text-muted)]">No tasks yet.</p>
-          )}
-          {tasks?.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => toggleDone(t)}
-              className="w-full flex items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-left hover:border-[var(--accent)]/50 transition-colors"
-            >
-              {t.done ? (
-                <CheckSquare size={15} className="text-success shrink-0" />
-              ) : (
-                <Square size={15} className="text-[var(--text-muted)] shrink-0" />
-              )}
-              <span
-                className={`flex-1 text-sm ${t.done ? "line-through text-[var(--text-muted)]" : ""}`}
-              >
-                {t.title}
-              </span>
-              {t.dueDate && (
-                <span className="text-[10px] text-[var(--text-muted)] shrink-0">{t.dueDate}</span>
-              )}
-            </button>
-          ))}
+        <div className="flex-1 overflow-y-auto pr-0.5">
+          <TaskPanel contactId={contactId} dealId={dealId} onChanged={onChanged} />
         </div>
       </div>
     </div>
