@@ -28,16 +28,21 @@ type Task = {
 };
 type Contact = { id: string; name: string };
 type Deal = { id: string; title: string };
+type Owner = { id: string; name: string };
 type CurrentUser = { id: string; role: string | null };
 
 function NewTaskModal({
   contacts,
   deals,
+  owners,
+  currentUserId,
   onClose,
   onCreated,
 }: {
   contacts: Contact[];
   deals: Deal[];
+  owners: Owner[];
+  currentUserId: string;
   onClose: () => void;
   onCreated: (task: Task) => void;
 }) {
@@ -45,6 +50,7 @@ function NewTaskModal({
   const [dueDate, setDueDate] = useState("");
   const [contactId, setContactId] = useState("");
   const [dealId, setDealId] = useState("");
+  const [ownerId, setOwnerId] = useState(currentUserId);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -59,6 +65,7 @@ function NewTaskModal({
         dueDate: dueDate || null,
         contactId: contactId || null,
         dealId: dealId || null,
+        ownerId: ownerId || null,
       }),
     });
     const inserted = await res.json();
@@ -151,6 +158,22 @@ function NewTaskModal({
             </select>
           </div>
 
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Owner</label>
+            <select
+              value={ownerId}
+              onChange={(e) => setOwnerId(e.target.value)}
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            >
+              <option value="">Unassigned</option>
+              {owners.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.id === currentUserId ? `${o.name} (you)` : o.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <button
             type="submit"
             disabled={!title.trim() || submitting}
@@ -175,12 +198,14 @@ export default function TasksList({
   const [tasks, setTasks] = useState(initialTasks);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [owners, setOwners] = useState<Owner[]>([]);
   const [showNewTask, setShowNewTask] = useState(false);
   const [scope, setScope] = useState<Scope>(() => defaultScopeForRole(currentUser.role));
 
   useEffect(() => {
     fetch("/api/contacts").then((r) => r.json()).then(setContacts);
     fetch("/api/deals").then((r) => r.json()).then(setDeals);
+    fetch("/api/users/basic").then((r) => r.json()).then(setOwners);
   }, []);
 
   const sortedTasks = useMemo(() => {
@@ -208,6 +233,15 @@ export default function TasksList({
     if (!window.confirm(`Delete "${task.title}"? This can't be undone.`)) return;
     setTasks((prev) => prev.filter((t) => t.id !== task.id));
     await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
+  }
+
+  async function reassignOwner(task: Task, ownerId: string) {
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, ownerId } : t)));
+    await fetch(`/api/tasks/${task.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ownerId: ownerId || null }),
+    });
   }
 
   function handleCreated(task: Task) {
@@ -286,6 +320,19 @@ export default function TasksList({
                 </span>
               );
             })()}
+            <select
+              value={t.ownerId ?? ""}
+              onChange={(e) => reassignOwner(t, e.target.value)}
+              title="Reassign owner"
+              className="shrink-0 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-2 py-1 text-xs outline-none focus:border-[var(--accent)]"
+            >
+              <option value="">Unassigned</option>
+              {owners.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.id === currentUser.id ? `${o.name} (you)` : o.name}
+                </option>
+              ))}
+            </select>
             <button
               type="button"
               title="Delete task"
@@ -305,6 +352,8 @@ export default function TasksList({
         <NewTaskModal
           contacts={contacts}
           deals={deals}
+          owners={owners}
+          currentUserId={currentUser.id}
           onClose={() => setShowNewTask(false)}
           onCreated={handleCreated}
         />
