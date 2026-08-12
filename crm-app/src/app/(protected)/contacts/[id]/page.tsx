@@ -31,5 +31,12 @@ export default async function ContactDetailPage({
     .leftJoin(stages, eq(deals.stageId, stages.id))
     .where(eq(deals.contactId, id));
 
-  return <ContactDetailView contact={contact} deals={contactDeals} currentUserId={currentUser!.id} />;
+  return (
+    <ContactDetailView
+      contact={contact}
+      deals={contactDeals}
+      currentUserId={currentUser!.id}
+      currentUserRole={currentUser!.role}
+    />
+  );
 }
