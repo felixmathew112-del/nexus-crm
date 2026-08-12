@@ -22,6 +22,7 @@ export default async function DealDetailPage({
       contactId: deals.contactId,
       expectedCloseDate: deals.expectedCloseDate,
       staleSince: deals.staleSince,
+      lostReason: deals.lostReason,
       ownerId: deals.ownerId,
       contactName: contacts.name,
       contactCompany: contacts.company,

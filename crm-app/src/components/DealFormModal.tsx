@@ -10,10 +10,13 @@ export type DealFormDeal = {
   contactId: string;
   expectedCloseDate: string | null;
   ownerId?: string | null;
+  lostReason?: string | null;
 };
 type Contact = { id: string; name: string; company: string | null };
 type Stage = { id: string; name: string };
 type OwnerOption = { id: string; name: string };
+
+export const LOST_REASONS = ["price", "competitor", "no-budget", "timing", "other"] as const;
 
 // Create/edit form for a deal, shared between the pipeline board's quick
 // actions and the deal detail page. Pass `deal` to edit (PATCHes); omit it
@@ -42,9 +45,14 @@ export function DealFormModal({
   const [value, setValue] = useState(deal ? String(deal.value) : "");
   const [expectedCloseDate, setExpectedCloseDate] = useState(deal?.expectedCloseDate ?? "");
   const [ownerId, setOwnerId] = useState(deal?.ownerId ?? currentUserId);
+  const [lostReason, setLostReason] = useState<(typeof LOST_REASONS)[number] | "">(
+    (deal?.lostReason as (typeof LOST_REASONS)[number]) ?? ""
+  );
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = title.trim() && contactId && stageId;
+  const lostStageId = stages.find((s) => s.name === "Lost")?.id;
+  const isMovingToLost = Boolean(lostStageId) && stageId === lostStageId;
+  const canSubmit = title.trim() && contactId && stageId && (!isMovingToLost || lostReason);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,6 +68,7 @@ export function DealFormModal({
         value: value ? Number(value) : 0,
         expectedCloseDate: expectedCloseDate || null,
         ownerId: ownerId || null,
+        lostReason: isMovingToLost ? lostReason : null,
       }),
     });
     setSubmitting(false);
@@ -132,6 +141,26 @@ export function DealFormModal({
               ))}
             </select>
           </div>
+
+          {isMovingToLost && (
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1.5">
+                Reason lost
+              </label>
+              <select
+                value={lostReason}
+                onChange={(e) => setLostReason(e.target.value as typeof lostReason)}
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm capitalize outline-none focus:border-[var(--accent)]"
+              >
+                <option value="">Select a reason…</option>
+                {LOST_REASONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-1.5">Value (₹)</label>

@@ -34,6 +34,7 @@ export const deals = sqliteTable("deals", {
   updatedAt: text("updated_at").default(sql`(current_timestamp)`),
   expectedCloseDate: text("expected_close_date"),
   staleSince: text("stale_since"), // set when no activity for N days -> powers "at risk" flag
+  lostReason: text("lost_reason"), // why a deal moved to the Lost stage
 });
 
 // ---------- Tasks / reminders (kills "leads slipping through cracks") ----------

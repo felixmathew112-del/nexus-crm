@@ -15,6 +15,7 @@ type Deal = {
   contactId: string;
   expectedCloseDate: string | null;
   staleSince: string | null;
+  lostReason: string | null;
   ownerId: string | null;
   contactName: string | null;
   contactCompany: string | null;
@@ -67,6 +68,7 @@ export default function DealDetailView({
     contactCompany: string | null;
     expectedCloseDate: string | null;
     staleSince: string | null;
+    lostReason: string | null;
     ownerId: string | null;
   };
 
@@ -131,6 +133,11 @@ export default function DealDetailView({
               <Building2 size={13} />
               {deal.contactCompany ?? deal.contactName}
             </Link>
+          )}
+          {deal.stageName === "Lost" && deal.lostReason && (
+            <div className="inline-flex items-center gap-1.5 text-xs text-risk mt-1.5 px-2 py-0.5 rounded-full bg-risk/10 capitalize">
+              Lost — {deal.lostReason}
+            </div>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
