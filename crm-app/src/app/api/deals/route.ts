@@ -17,6 +17,7 @@ export async function GET() {
       contactCompany: contacts.company,
       expectedCloseDate: deals.expectedCloseDate,
       staleSince: deals.staleSince,
+      ownerId: deals.ownerId,
     })
     .from(deals)
     .leftJoin(contacts, eq(deals.contactId, contacts.id));
