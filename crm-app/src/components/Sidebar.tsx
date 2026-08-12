@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Kanban, Users, CheckSquare, BarChart3, LogOut } from "lucide-react";
+import { LayoutDashboard, Kanban, Users, CheckSquare, BarChart3, ShieldCheck, LogOut } from "lucide-react";
 import GlobalSearch from "./GlobalSearch";
 
 const nav = [
@@ -17,6 +17,10 @@ type CurrentUser = { id: string; name: string; email: string; role: string | nul
 export default function Sidebar({ user }: { user: CurrentUser }) {
   const pathname = usePathname();
   const router = useRouter();
+  const isManager = user.role === "manager" || user.role === "admin";
+  const visibleNav = isManager
+    ? [...nav, { href: "/admin/users", label: "Users", icon: ShieldCheck }]
+    : nav;
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -32,7 +36,7 @@ export default function Sidebar({ user }: { user: CurrentUser }) {
       </div>
       <GlobalSearch />
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {nav.map((item) => {
+        {visibleNav.map((item) => {
           const active = pathname === item.href;
           const Icon = item.icon;
           return (
