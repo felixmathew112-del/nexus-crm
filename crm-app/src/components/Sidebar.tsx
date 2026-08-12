@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, Kanban, Users, CheckSquare, BarChart3, ShieldCheck, LogOut } from "lucide-react";
 import GlobalSearch from "./GlobalSearch";
+import NotificationsBell from "./NotificationsBell";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -61,14 +62,17 @@ export default function Sidebar({ user }: { user: CurrentUser }) {
             <div className="text-sm font-medium truncate">{user.name}</div>
             <div className="text-xs text-[var(--text-muted)] truncate">{user.email}</div>
           </div>
-          <button
-            type="button"
-            title="Log out"
-            onClick={handleLogout}
-            className="shrink-0 text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
-          >
-            <LogOut size={16} />
-          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            <NotificationsBell />
+            <button
+              type="button"
+              title="Log out"
+              onClick={handleLogout}
+              className="text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </div>
     </aside>

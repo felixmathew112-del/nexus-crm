@@ -67,3 +67,15 @@ export const users = sqliteTable("users", {
   role: text("role").default("rep"), // rep | manager | admin
   passwordHash: text("password_hash"), // salt:hash (scrypt) - null means login is disabled
 });
+
+// ---------- Notifications (e.g. "this deal/contact was just assigned to you") ----------
+export const notifications = sqliteTable("notifications", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(), // recipient
+  type: text("type").notNull(), // deal_assigned | contact_assigned
+  dealId: text("deal_id"),
+  contactId: text("contact_id"),
+  message: text("message").notNull(),
+  read: integer("read", { mode: "boolean" }).default(false),
+  createdAt: text("created_at").default(sql`(current_timestamp)`),
+});

@@ -3,6 +3,7 @@ import { activities, contacts, deals, tasks } from "@/db/schema";
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { notifyAssignment } from "@/lib/notify";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
@@ -10,6 +11,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const { id } = await params;
   const body = await req.json();
+  const [existing] = await db.select().from(contacts).where(eq(contacts.id, id));
+  const newOwnerId = body.ownerId ?? null;
+
   const [updated] = await db
     .update(contacts)
     .set({
@@ -18,12 +22,23 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       email: body.email ?? null,
       phone: body.phone ?? null,
       source: body.source ?? null,
-      ownerId: body.ownerId ?? null,
+      ownerId: newOwnerId,
     })
     .where(eq(contacts.id, id))
     .returning();
 
   if (!updated) return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+
+  if (newOwnerId !== existing?.ownerId) {
+    await notifyAssignment({
+      actingUserId: user.id,
+      newOwnerId,
+      type: "contact_assigned",
+      contactId: updated.id,
+      message: `${user.name} assigned you a contact: ${updated.name}`,
+    });
+  }
+
   return NextResponse.json(updated);
 }
 
