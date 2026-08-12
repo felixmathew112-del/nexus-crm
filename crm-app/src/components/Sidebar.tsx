@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, Kanban, Users, CheckSquare, LogOut } from "lucide-react";
+import GlobalSearch from "./GlobalSearch";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -28,6 +29,7 @@ export default function Sidebar({ user }: { user: CurrentUser }) {
         <div className="font-display text-lg font-semibold tracking-tight">Nexus CRM</div>
         <div className="text-xs text-[var(--text-muted)] mt-0.5">Phase 1 — Core Engine</div>
       </div>
+      <GlobalSearch />
       <nav className="flex-1 px-3 py-4 space-y-1">
         {nav.map((item) => {
           const active = pathname === item.href;
