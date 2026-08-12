@@ -55,10 +55,12 @@ export default function ContactDetailView({
   const router = useRouter();
   const [contact, setContact] = useState(initialContact);
   const [owners, setOwners] = useState<Owner[]>([]);
+  const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [showEdit, setShowEdit] = useState(false);
 
   useEffect(() => {
     fetch("/api/users/basic").then((r) => r.json()).then(setOwners);
+    fetch("/api/contacts").then((r) => r.json()).then(setAllContacts);
   }, []);
 
   const ownerName = useMemo(
@@ -216,6 +218,7 @@ export default function ContactDetailView({
       {showEdit && (
         <ContactFormModal
           contact={contact}
+          existingContacts={allContacts}
           users={owners}
           currentUserId={currentUserId}
           onClose={() => setShowEdit(false)}
