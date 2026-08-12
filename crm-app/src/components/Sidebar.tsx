@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Kanban, Users, CheckSquare, LogOut } from "lucide-react";
+import { LayoutDashboard, Kanban, Users, CheckSquare, BarChart3, LogOut } from "lucide-react";
 import GlobalSearch from "./GlobalSearch";
 
 const nav = [
@@ -9,6 +9,7 @@ const nav = [
   { href: "/pipeline", label: "Pipeline", icon: Kanban },
   { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
+  { href: "/reports", label: "Reports", icon: BarChart3 },
 ];
 
 type CurrentUser = { id: string; name: string; email: string; role: string | null };
