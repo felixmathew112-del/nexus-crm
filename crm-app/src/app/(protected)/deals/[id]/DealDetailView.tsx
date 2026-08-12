@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Building2, Flame, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Building2, Flame, Pencil, Trash2, User as UserIcon } from "lucide-react";
 import { ActivityPanel } from "@/components/ActivityModal";
 import { TaskPanel } from "@/components/TaskModal";
 import { DealFormModal } from "@/components/DealFormModal";
@@ -25,23 +25,37 @@ type Deal = {
 };
 type Contact = { id: string; name: string; company: string | null };
 type Stage = { id: string; name: string; color: string };
+type Owner = { id: string; name: string };
 
 function formatValue(v: number) {
   if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
   return `₹${v.toLocaleString()}`;
 }
 
-export default function DealDetailView({ deal: initialDeal }: { deal: Deal }) {
+export default function DealDetailView({
+  deal: initialDeal,
+  currentUserId,
+}: {
+  deal: Deal;
+  currentUserId: string;
+}) {
   const router = useRouter();
   const [deal, setDeal] = useState(initialDeal);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [stages, setStages] = useState<Stage[]>([]);
+  const [owners, setOwners] = useState<Owner[]>([]);
   const [showEdit, setShowEdit] = useState(false);
 
   useEffect(() => {
     fetch("/api/contacts").then((r) => r.json()).then(setContacts);
     fetch("/api/stages").then((r) => r.json()).then(setStages);
+    fetch("/api/users/basic").then((r) => r.json()).then(setOwners);
   }, []);
+
+  const ownerName = useMemo(
+    () => owners.find((o) => o.id === deal.ownerId)?.name ?? null,
+    [owners, deal.ownerId]
+  );
 
   type DealListRow = {
     id: string;
@@ -139,7 +153,16 @@ export default function DealDetailView({ deal: initialDeal }: { deal: Deal }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-1">
+            Owner
+          </div>
+          <div className="flex items-center gap-1.5 font-display font-semibold truncate">
+            <UserIcon size={13} className="shrink-0 text-[var(--text-muted)]" />
+            {ownerName ?? "Unassigned"}
+          </div>
+        </div>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
           <div className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-1">
             Stage
@@ -196,6 +219,8 @@ export default function DealDetailView({ deal: initialDeal }: { deal: Deal }) {
           deal={{ ...deal, value: deal.value ?? 0 }}
           contacts={contacts}
           stages={stages}
+          users={owners}
+          currentUserId={currentUserId}
           onClose={() => setShowEdit(false)}
           onSaved={() => {
             setShowEdit(false);

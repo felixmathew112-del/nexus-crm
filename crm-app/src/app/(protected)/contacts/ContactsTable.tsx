@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Phone,
@@ -27,6 +27,7 @@ type Contact = {
   ownerId: string | null;
 };
 type CurrentUser = { id: string; role: string | null };
+type Owner = { id: string; name: string };
 
 export default function ContactsTable({
   contacts: initialContacts,
@@ -43,6 +44,11 @@ export default function ContactsTable({
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [scope, setScope] = useState<Scope>(() => defaultScopeForRole(currentUser.role));
+  const [owners, setOwners] = useState<Owner[]>([]);
+
+  useEffect(() => {
+    fetch("/api/users/basic").then((r) => r.json()).then(setOwners);
+  }, []);
 
   function handleCreated(contact: Contact) {
     setContacts((prev) => [contact, ...prev]);
@@ -230,11 +236,18 @@ export default function ContactsTable({
       </div>
 
       {showNewContact && (
-        <ContactFormModal onClose={() => setShowNewContact(false)} onSaved={handleCreated} />
+        <ContactFormModal
+          users={owners}
+          currentUserId={currentUser.id}
+          onClose={() => setShowNewContact(false)}
+          onSaved={handleCreated}
+        />
       )}
       {editContact && (
         <ContactFormModal
           contact={editContact}
+          users={owners}
+          currentUserId={currentUser.id}
           onClose={() => setEditContact(null)}
           onSaved={handleEdited}
         />

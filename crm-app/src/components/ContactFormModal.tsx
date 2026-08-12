@@ -14,15 +14,21 @@ export type ContactFormContact = {
 
 export const LEAD_SOURCES = ["referral", "website", "walk-in", "whatsapp"] as const;
 
+type OwnerOption = { id: string; name: string };
+
 // Create/edit form for a contact, shared between the contacts table's quick
 // actions and the contact detail page. Pass `contact` to edit (PATCHes);
 // omit it to create (POSTs).
 export function ContactFormModal({
   contact,
+  users,
+  currentUserId,
   onClose,
   onSaved,
 }: {
   contact?: ContactFormContact;
+  users: OwnerOption[];
+  currentUserId: string;
   onClose: () => void;
   onSaved: (contact: ContactFormContact) => void;
 }) {
@@ -34,6 +40,7 @@ export function ContactFormModal({
   const [source, setSource] = useState<(typeof LEAD_SOURCES)[number]>(
     (contact?.source as (typeof LEAD_SOURCES)[number]) ?? "referral"
   );
+  const [ownerId, setOwnerId] = useState(contact?.ownerId ?? currentUserId);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -49,6 +56,7 @@ export function ContactFormModal({
         email: email || null,
         phone: phone || null,
         source,
+        ownerId: ownerId || null,
       }),
     });
     const saved: ContactFormContact = await res.json();
@@ -134,6 +142,22 @@ export function ContactFormModal({
               {LEAD_SOURCES.map((s) => (
                 <option key={s} value={s}>
                   {s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs text-[var(--text-muted)] mb-1.5">Owner</label>
+            <select
+              value={ownerId}
+              onChange={(e) => setOwnerId(e.target.value)}
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            >
+              <option value="">Unassigned</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.id === currentUserId ? `${u.name} (you)` : u.name}
                 </option>
               ))}
             </select>

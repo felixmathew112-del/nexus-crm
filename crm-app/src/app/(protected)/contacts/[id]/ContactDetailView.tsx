@@ -1,8 +1,17 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Building2, Mail, Phone, Flame, Pencil, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Building2,
+  Mail,
+  Phone,
+  Flame,
+  Pencil,
+  Trash2,
+  User as UserIcon,
+} from "lucide-react";
 import { ActivityPanel } from "@/components/ActivityModal";
 import { TaskPanel } from "@/components/TaskModal";
 import { ContactFormModal, type ContactFormContact } from "@/components/ContactFormModal";
@@ -27,6 +36,7 @@ type Deal = {
   stageName: string | null;
   stageColor: string | null;
 };
+type Owner = { id: string; name: string };
 
 function formatValue(v: number) {
   if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
@@ -36,13 +46,25 @@ function formatValue(v: number) {
 export default function ContactDetailView({
   contact: initialContact,
   deals,
+  currentUserId,
 }: {
   contact: Contact;
   deals: Deal[];
+  currentUserId: string;
 }) {
   const router = useRouter();
   const [contact, setContact] = useState(initialContact);
+  const [owners, setOwners] = useState<Owner[]>([]);
   const [showEdit, setShowEdit] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/users/basic").then((r) => r.json()).then(setOwners);
+  }, []);
+
+  const ownerName = useMemo(
+    () => owners.find((o) => o.id === contact.ownerId)?.name ?? null,
+    [owners, contact.ownerId]
+  );
 
   function handleSaved(updated: ContactFormContact) {
     setContact(updated);
@@ -100,7 +122,16 @@ export default function ContactDetailView({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+          <div className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-1">
+            Owner
+          </div>
+          <div className="flex items-center gap-1.5 font-display font-semibold truncate">
+            <UserIcon size={13} className="shrink-0 text-[var(--text-muted)]" />
+            {ownerName ?? "Unassigned"}
+          </div>
+        </div>
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
           <div className="text-xs text-[var(--text-muted)] uppercase tracking-wide mb-1">
             Email
@@ -185,6 +216,8 @@ export default function ContactDetailView({
       {showEdit && (
         <ContactFormModal
           contact={contact}
+          users={owners}
+          currentUserId={currentUserId}
           onClose={() => setShowEdit(false)}
           onSaved={handleSaved}
         />

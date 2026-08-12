@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     stageId: body.stageId,
     value: body.value ?? 0,
     expectedCloseDate: body.expectedCloseDate ?? null,
-    ownerId: user.id,
+    ownerId: body.ownerId !== undefined ? body.ownerId : user.id,
   };
   await db.insert(deals).values(newDeal);
   return NextResponse.json(newDeal, { status: 201 });

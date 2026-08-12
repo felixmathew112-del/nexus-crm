@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { contacts, deals, stages } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
 import ContactDetailView from "./ContactDetailView";
 
 export default async function ContactDetailPage({
@@ -10,6 +11,7 @@ export default async function ContactDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const currentUser = await getCurrentUser();
 
   const [contact] = await db.select().from(contacts).where(eq(contacts.id, id));
   if (!contact) notFound();
@@ -29,5 +31,5 @@ export default async function ContactDetailPage({
     .leftJoin(stages, eq(deals.stageId, stages.id))
     .where(eq(deals.contactId, id));
 
-  return <ContactDetailView contact={contact} deals={contactDeals} />;
+  return <ContactDetailView contact={contact} deals={contactDeals} currentUserId={currentUser!.id} />;
 }

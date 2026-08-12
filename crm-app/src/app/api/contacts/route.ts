@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     email: body.email ?? null,
     phone: body.phone ?? null,
     source: body.source ?? null,
-    ownerId: user.id,
+    ownerId: body.ownerId !== undefined ? body.ownerId : user.id,
   };
   await db.insert(contacts).values(newContact);
   return NextResponse.json(newContact, { status: 201 });

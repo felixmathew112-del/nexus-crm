@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { deals, contacts, stages } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
 import DealDetailView from "./DealDetailView";
 
 export default async function DealDetailPage({
@@ -10,6 +11,7 @@ export default async function DealDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const currentUser = await getCurrentUser();
 
   const [row] = await db
     .select({
@@ -35,5 +37,5 @@ export default async function DealDetailPage({
 
   if (!row) notFound();
 
-  return <DealDetailView deal={row} />;
+  return <DealDetailView deal={row} currentUserId={currentUser!.id} />;
 }
