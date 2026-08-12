@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
-import { X, Loader2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { X, Loader2, AlertTriangle } from "lucide-react";
+import Link from "next/link";
 
 export type ContactFormContact = {
   id: string;
@@ -15,18 +16,25 @@ export type ContactFormContact = {
 export const LEAD_SOURCES = ["referral", "website", "walk-in", "whatsapp"] as const;
 
 type OwnerOption = { id: string; name: string };
+type ExistingContact = { id: string; name: string; email: string | null; phone: string | null };
+
+function normalizePhone(phone: string) {
+  return phone.replace(/\D/g, "");
+}
 
 // Create/edit form for a contact, shared between the contacts table's quick
 // actions and the contact detail page. Pass `contact` to edit (PATCHes);
 // omit it to create (POSTs).
 export function ContactFormModal({
   contact,
+  existingContacts,
   users,
   currentUserId,
   onClose,
   onSaved,
 }: {
   contact?: ContactFormContact;
+  existingContacts: ExistingContact[];
   users: OwnerOption[];
   currentUserId: string;
   onClose: () => void;
@@ -42,6 +50,17 @@ export function ContactFormModal({
   );
   const [ownerId, setOwnerId] = useState(contact?.ownerId ?? currentUserId);
   const [submitting, setSubmitting] = useState(false);
+
+  const duplicateMatch = useMemo(() => {
+    const trimmedEmail = email.trim().toLowerCase();
+    const normalizedPhone = normalizePhone(phone);
+    return existingContacts.find((c) => {
+      if (c.id === contact?.id) return false;
+      const emailMatch = trimmedEmail && c.email?.toLowerCase() === trimmedEmail;
+      const phoneMatch = normalizedPhone && c.phone && normalizePhone(c.phone) === normalizedPhone;
+      return Boolean(emailMatch || phoneMatch);
+    });
+  }, [existingContacts, email, phone, contact?.id]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -162,6 +181,23 @@ export function ContactFormModal({
               ))}
             </select>
           </div>
+
+          {duplicateMatch && (
+            <div className="flex items-start gap-2 rounded-lg border border-risk/30 bg-risk/10 px-3 py-2 text-xs text-risk">
+              <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+              <span>
+                Matches an existing contact:{" "}
+                <Link
+                  href={`/contacts/${duplicateMatch.id}`}
+                  target="_blank"
+                  className="font-medium underline"
+                >
+                  {duplicateMatch.name}
+                </Link>
+                . You can still save if this is a different person.
+              </span>
+            </div>
+          )}
 
           <button
             type="submit"

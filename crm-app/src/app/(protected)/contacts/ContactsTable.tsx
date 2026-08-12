@@ -237,6 +237,7 @@ export default function ContactsTable({
 
       {showNewContact && (
         <ContactFormModal
+          existingContacts={contacts}
           users={owners}
           currentUserId={currentUser.id}
           onClose={() => setShowNewContact(false)}
@@ -246,6 +247,7 @@ export default function ContactsTable({
       {editContact && (
         <ContactFormModal
           contact={editContact}
+          existingContacts={contacts}
           users={owners}
           currentUserId={currentUser.id}
           onClose={() => setEditContact(null)}
