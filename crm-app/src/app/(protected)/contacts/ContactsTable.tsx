@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ActivityModal } from "@/components/ActivityModal";
 import { TaskModal } from "@/components/TaskModal";
+import { ScopeToggle, defaultScopeForRole, type Scope } from "@/components/ScopeToggle";
 
 type Contact = {
   id: string;
@@ -23,7 +24,9 @@ type Contact = {
   email: string | null;
   phone: string | null;
   source: string | null;
+  ownerId: string | null;
 };
+type CurrentUser = { id: string; role: string | null };
 
 const LEAD_SOURCES = ["referral", "website", "walk-in", "whatsapp"] as const;
 
@@ -163,7 +166,13 @@ function ContactFormModal({
   );
 }
 
-export default function ContactsTable({ contacts: initialContacts }: { contacts: Contact[] }) {
+export default function ContactsTable({
+  contacts: initialContacts,
+  currentUser,
+}: {
+  contacts: Contact[];
+  currentUser: CurrentUser;
+}) {
   const [contacts, setContacts] = useState(initialContacts);
   const [activityContact, setActivityContact] = useState<Contact | null>(null);
   const [taskContact, setTaskContact] = useState<Contact | null>(null);
@@ -171,6 +180,7 @@ export default function ContactsTable({ contacts: initialContacts }: { contacts:
   const [editContact, setEditContact] = useState<Contact | null>(null);
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [scope, setScope] = useState<Scope>(() => defaultScopeForRole(currentUser.role));
 
   function handleCreated(contact: Contact) {
     setContacts((prev) => [contact, ...prev]);
@@ -201,13 +211,14 @@ export default function ContactsTable({ contacts: initialContacts }: { contacts:
   const filteredContacts = useMemo(() => {
     const q = search.trim().toLowerCase();
     return contacts.filter((c) => {
+      if (scope === "mine" && c.ownerId !== currentUser.id) return false;
       if (sourceFilter !== "all" && (c.source ?? "unknown") !== sourceFilter) return false;
       if (!q) return true;
       return [c.name, c.company, c.email, c.phone].some((field) =>
         field?.toLowerCase().includes(q)
       );
     });
-  }, [contacts, search, sourceFilter]);
+  }, [contacts, search, sourceFilter, scope, currentUser.id]);
 
   return (
     <>
@@ -225,6 +236,8 @@ export default function ContactsTable({ contacts: initialContacts }: { contacts:
             className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] pl-9 pr-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
           />
         </div>
+
+        <ScopeToggle value={scope} onChange={setScope} />
 
         <select
           value={sourceFilter}

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { ActivityModal } from "@/components/ActivityModal";
 import { TaskModal } from "@/components/TaskModal";
+import { ScopeToggle, defaultScopeForRole, type Scope } from "@/components/ScopeToggle";
 
 type Stage = { id: string; name: string; order: number; color: string };
 type Deal = {
@@ -35,8 +36,10 @@ type Deal = {
   contactCompany: string | null;
   expectedCloseDate: string | null;
   staleSince: string | null;
+  ownerId: string | null;
 };
 type Contact = { id: string; name: string; company: string | null };
+type CurrentUser = { id: string; role: string | null };
 
 function formatValue(v: number) {
   if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
@@ -355,7 +358,7 @@ function DealFormModal({
   );
 }
 
-export default function PipelineBoard() {
+export default function PipelineBoard({ currentUser }: { currentUser: CurrentUser }) {
   const [stages, setStages] = useState<Stage[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -364,6 +367,7 @@ export default function PipelineBoard() {
   const [taskDeal, setTaskDeal] = useState<Deal | null>(null);
   const [showNewDeal, setShowNewDeal] = useState(false);
   const [editDeal, setEditDeal] = useState<Deal | null>(null);
+  const [scope, setScope] = useState<Scope>(() => defaultScopeForRole(currentUser.role));
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -388,15 +392,20 @@ export default function PipelineBoard() {
     refreshDeals();
   }, []);
 
+  const visibleDeals = useMemo(
+    () => (scope === "mine" ? deals.filter((d) => d.ownerId === currentUser.id) : deals),
+    [deals, scope, currentUser.id]
+  );
+
   const dealsByStage = useMemo(() => {
     const map: Record<string, Deal[]> = {};
     for (const stage of stages) map[stage.id] = [];
-    for (const deal of deals) {
+    for (const deal of visibleDeals) {
       if (!map[deal.stageId]) map[deal.stageId] = [];
       map[deal.stageId].push(deal);
     }
     return map;
-  }, [stages, deals]);
+  }, [stages, visibleDeals]);
 
   function handleDragStart(event: DragStartEvent) {
     const deal = deals.find((d) => d.id === event.active.id);
@@ -424,7 +433,8 @@ export default function PipelineBoard() {
 
   return (
     <>
-      <div className="flex justify-end mb-4">
+      <div className="flex items-center justify-between mb-4">
+        <ScopeToggle value={scope} onChange={setScope} />
         <button
           type="button"
           onClick={() => setShowNewDeal(true)}

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { CheckSquare, Square, Plus, X, Loader2, Trash2, Building2, Kanban } from "lucide-react";
+import { ScopeToggle, defaultScopeForRole, type Scope } from "@/components/ScopeToggle";
 
 type Task = {
   id: string;
@@ -9,11 +10,13 @@ type Task = {
   done: boolean | null;
   contactId: string | null;
   dealId: string | null;
+  ownerId: string | null;
   contactName: string | null;
   dealTitle: string | null;
 };
 type Contact = { id: string; name: string };
 type Deal = { id: string; title: string };
+type CurrentUser = { id: string; role: string | null };
 
 function NewTaskModal({
   contacts,
@@ -150,11 +153,18 @@ function NewTaskModal({
   );
 }
 
-export default function TasksList({ tasks: initialTasks }: { tasks: Task[] }) {
+export default function TasksList({
+  tasks: initialTasks,
+  currentUser,
+}: {
+  tasks: Task[];
+  currentUser: CurrentUser;
+}) {
   const [tasks, setTasks] = useState(initialTasks);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [showNewTask, setShowNewTask] = useState(false);
+  const [scope, setScope] = useState<Scope>(() => defaultScopeForRole(currentUser.role));
 
   useEffect(() => {
     fetch("/api/contacts").then((r) => r.json()).then(setContacts);
@@ -162,13 +172,15 @@ export default function TasksList({ tasks: initialTasks }: { tasks: Task[] }) {
   }, []);
 
   const sortedTasks = useMemo(() => {
-    return [...tasks].sort((a, b) => {
+    const visible =
+      scope === "mine" ? tasks.filter((t) => t.ownerId === currentUser.id) : tasks;
+    return [...visible].sort((a, b) => {
       if (Boolean(a.done) !== Boolean(b.done)) return a.done ? 1 : -1;
       if (!a.dueDate) return 1;
       if (!b.dueDate) return -1;
       return a.dueDate.localeCompare(b.dueDate);
     });
-  }, [tasks]);
+  }, [tasks, scope, currentUser.id]);
 
   async function toggleDone(task: Task) {
     const done = !task.done;
@@ -193,7 +205,8 @@ export default function TasksList({ tasks: initialTasks }: { tasks: Task[] }) {
 
   return (
     <>
-      <div className="flex justify-end mb-4">
+      <div className="flex items-center justify-between mb-4">
+        <ScopeToggle value={scope} onChange={setScope} />
         <button
           type="button"
           onClick={() => setShowNewTask(true)}

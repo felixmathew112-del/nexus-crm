@@ -1,6 +1,9 @@
+import { getCurrentUser } from "@/lib/auth";
 import PipelineBoard from "./PipelineBoard";
 
-export default function PipelinePage() {
+export default async function PipelinePage() {
+  const currentUser = await getCurrentUser();
+
   return (
     <div className="p-6 md:p-8">
       <div className="mb-6">
@@ -9,7 +12,7 @@ export default function PipelinePage() {
           Drag deals between stages. The flame marks deals with no recent activity — log one from the card to clear it.
         </p>
       </div>
-      <PipelineBoard />
+      <PipelineBoard currentUser={currentUser!} />
     </div>
   );
 }

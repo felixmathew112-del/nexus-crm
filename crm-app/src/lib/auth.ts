@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { db } from "@/db";
 import { users } from "@/db/schema";
@@ -27,7 +28,10 @@ export async function clearSessionCookie() {
   cookieStore.delete(SESSION_COOKIE);
 }
 
-export async function getCurrentUser() {
+// Memoized per request - the layout and each page both call this, and
+// React's cache() collapses repeat calls during one render pass into a
+// single cookie read + DB lookup.
+export const getCurrentUser = cache(async () => {
   const cookieStore = await cookies();
   const userId = verifySessionToken(cookieStore.get(SESSION_COOKIE)?.value);
   if (!userId) return null;
@@ -37,4 +41,4 @@ export async function getCurrentUser() {
     .from(users)
     .where(eq(users.id, userId));
   return user ?? null;
-}
+});

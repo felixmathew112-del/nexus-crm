@@ -1,9 +1,10 @@
 import { db } from "@/db";
 import { contacts } from "@/db/schema";
+import { getCurrentUser } from "@/lib/auth";
 import ContactsTable from "./ContactsTable";
 
 export default async function ContactsPage() {
-  const rows = await db.select().from(contacts);
+  const [rows, currentUser] = await Promise.all([db.select().from(contacts), getCurrentUser()]);
 
   return (
     <div className="p-6 md:p-8">
@@ -14,7 +15,7 @@ export default async function ContactsPage() {
         </p>
       </div>
 
-      <ContactsTable contacts={rows} />
+      <ContactsTable contacts={rows} currentUser={currentUser!} />
     </div>
   );
 }
