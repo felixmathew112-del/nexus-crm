@@ -27,13 +27,13 @@ async function seed() {
 
   // Default pipeline stages
   const stageDefs = [
-    { id: id(), name: "New Lead", order: 1, color: "#6366f1" },
-    { id: id(), name: "Contacted", order: 2, color: "#0ea5e9" },
-    { id: id(), name: "Qualified", order: 3, color: "#f59e0b" },
-    { id: id(), name: "Proposal Sent", order: 4, color: "#f97316" },
-    { id: id(), name: "Negotiation", order: 5, color: "#a855f7" },
-    { id: id(), name: "Won", order: 6, color: "#22c55e" },
-    { id: id(), name: "Lost", order: 7, color: "#ef4444" },
+    { id: id(), name: "New Lead", order: 1, color: "#6366f1", probability: 10 },
+    { id: id(), name: "Contacted", order: 2, color: "#0ea5e9", probability: 20 },
+    { id: id(), name: "Qualified", order: 3, color: "#f59e0b", probability: 40 },
+    { id: id(), name: "Proposal Sent", order: 4, color: "#f97316", probability: 60 },
+    { id: id(), name: "Negotiation", order: 5, color: "#a855f7", probability: 80 },
+    { id: id(), name: "Won", order: 6, color: "#22c55e", probability: 100 },
+    { id: id(), name: "Lost", order: 7, color: "#ef4444", probability: 0 },
   ];
   await db.insert(stages).values(stageDefs);
 

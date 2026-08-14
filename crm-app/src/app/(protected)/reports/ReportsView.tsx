@@ -1,7 +1,9 @@
 "use client";
 import { useMemo, useState } from "react";
-import { Trophy, Target, TrendingUp, Percent } from "lucide-react";
+import { Trophy, Target, TrendingUp, Percent, Gauge } from "lucide-react";
 import { ScopeToggle, defaultScopeForRole, type Scope } from "@/components/ScopeToggle";
+
+const DEFAULT_PROBABILITY = 50;
 
 type Deal = {
   id: string;
@@ -11,7 +13,7 @@ type Deal = {
   ownerId: string | null;
   lostReason: string | null;
 };
-type Stage = { id: string; name: string; order: number; color: string };
+type Stage = { id: string; name: string; order: number; color: string; probability: number | null };
 type User = { id: string; name: string };
 type CurrentUser = { id: string; role: string | null };
 
@@ -64,9 +66,34 @@ export default function ReportsView({
   const winRate = closedCount === 0 ? 0 : Math.round((wonDeals.length / closedCount) * 100);
   const wonValue = wonDeals.reduce((sum, d) => sum + (d.value ?? 0), 0);
   const avgDealSize = wonDeals.length === 0 ? 0 : wonValue / wonDeals.length;
-  const openValue = scopedDeals
-    .filter((d) => d.stageId !== wonStage?.id && d.stageId !== lostStage?.id)
-    .reduce((sum, d) => sum + (d.value ?? 0), 0);
+  const openDeals = useMemo(
+    () => scopedDeals.filter((d) => d.stageId !== wonStage?.id && d.stageId !== lostStage?.id),
+    [scopedDeals, wonStage, lostStage]
+  );
+  const openValue = openDeals.reduce((sum, d) => sum + (d.value ?? 0), 0);
+
+  const stageMap = useMemo(() => Object.fromEntries(stages.map((s) => [s.id, s])), [stages]);
+  const weightedForecast = useMemo(
+    () =>
+      openDeals.reduce((sum, d) => {
+        const probability = stageMap[d.stageId]?.probability ?? DEFAULT_PROBABILITY;
+        return sum + (d.value ?? 0) * (probability / 100);
+      }, 0),
+    [openDeals, stageMap]
+  );
+
+  const forecastByStage = useMemo(
+    () =>
+      orderedStages
+        .filter((s) => s.id !== wonStage?.id && s.id !== lostStage?.id)
+        .map((stage) => {
+          const stageDeals = openDeals.filter((d) => d.stageId === stage.id);
+          const rawValue = stageDeals.reduce((sum, d) => sum + (d.value ?? 0), 0);
+          const probability = stage.probability ?? DEFAULT_PROBABILITY;
+          return { stage, probability, rawValue, weightedValue: rawValue * (probability / 100) };
+        }),
+    [orderedStages, openDeals, wonStage, lostStage]
+  );
 
   const lostReasonKeys = useMemo(
     () => Array.from(new Set(lostDeals.map((d) => d.lostReason ?? "unspecified"))),
@@ -117,6 +144,12 @@ export default function ReportsView({
     { label: "Won value", value: formatValue(wonValue), icon: Trophy, sub: `${wonDeals.length} deals` },
     { label: "Avg deal size", value: formatValue(avgDealSize), icon: Target, sub: "on won deals" },
     { label: "Open pipeline", value: formatValue(openValue), icon: TrendingUp, sub: `across ${orderedStages.length} stages` },
+    {
+      label: "Weighted forecast",
+      value: formatValue(weightedForecast),
+      icon: Gauge,
+      sub: "value × stage probability",
+    },
   ];
 
   return (
@@ -125,7 +158,7 @@ export default function ReportsView({
         <ScopeToggle value={scope} onChange={setScope} />
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         {cards.map((c) => {
           const Icon = c.icon;
           return (
@@ -173,6 +206,50 @@ export default function ReportsView({
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 mb-6">
+        <h2 className="font-display text-sm font-semibold mb-4">Forecast by stage</h2>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-[var(--text-muted)] text-xs uppercase tracking-wide">
+              <th className="pb-2 font-medium">Stage</th>
+              <th className="pb-2 font-medium text-right">Probability</th>
+              <th className="pb-2 font-medium text-right">Raw value</th>
+              <th className="pb-2 font-medium text-right">Weighted</th>
+            </tr>
+          </thead>
+          <tbody>
+            {forecastByStage.map(({ stage, probability, rawValue, weightedValue }) => (
+              <tr key={stage.id} className="border-t border-[var(--border)]">
+                <td className="py-2.5">
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: stage.color }}
+                    />
+                    {stage.name}
+                  </span>
+                </td>
+                <td className="py-2.5 text-right text-[var(--text-muted)]">{probability}%</td>
+                <td className="py-2.5 text-right text-[var(--text-muted)]">
+                  {formatValue(rawValue)}
+                </td>
+                <td className="py-2.5 text-right font-display font-semibold text-[var(--accent)]">
+                  {formatValue(weightedValue)}
+                </td>
+              </tr>
+            ))}
+            <tr className="border-t border-[var(--border)]">
+              <td className="py-2.5 font-medium" colSpan={3}>
+                Total weighted forecast
+              </td>
+              <td className="py-2.5 text-right font-display font-semibold text-[var(--accent)]">
+                {formatValue(weightedForecast)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       {lostDeals.length > 0 && (

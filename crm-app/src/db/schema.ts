@@ -20,6 +20,7 @@ export const stages = sqliteTable("stages", {
   name: text("name").notNull(),
   order: integer("order").notNull(),
   color: text("color").notNull(),
+  probability: integer("probability"), // 0-100, likelihood a deal in this stage closes Won
 });
 
 // ---------- Deals (a contact moving through the pipeline) ----------
