@@ -77,6 +77,7 @@ export default function NotificationsBell({ userId }: { userId: string }) {
     if (n.dealId) router.push(`/deals/${n.dealId}`);
     else if (n.contactId) router.push(`/contacts/${n.contactId}`);
     else if (n.type === "task_assigned") router.push("/tasks");
+    else if (n.type === "bulk_reassignment") router.push("/contacts");
   }
 
   function handleTaskClick() {
