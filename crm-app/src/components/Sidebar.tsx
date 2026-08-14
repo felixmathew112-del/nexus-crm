@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Kanban, Users, CheckSquare, BarChart3, ShieldCheck, LogOut } from "lucide-react";
+import { LayoutDashboard, Kanban, Users, CheckSquare, BarChart3, ShieldCheck, Settings, LogOut } from "lucide-react";
 import GlobalSearch from "./GlobalSearch";
 import NotificationsBell from "./NotificationsBell";
 
@@ -20,7 +20,11 @@ export default function Sidebar({ user }: { user: CurrentUser }) {
   const router = useRouter();
   const isManager = user.role === "manager" || user.role === "admin";
   const visibleNav = isManager
-    ? [...nav, { href: "/admin/users", label: "Users", icon: ShieldCheck }]
+    ? [
+        ...nav,
+        { href: "/admin/users", label: "Users", icon: ShieldCheck },
+        { href: "/admin/stages", label: "Stages", icon: Settings },
+      ]
     : nav;
 
   async function handleLogout() {
