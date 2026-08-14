@@ -11,11 +11,15 @@ import {
   Search,
   Pencil,
   Trash2,
+  Download,
+  Upload,
 } from "lucide-react";
 import { ActivityModal } from "@/components/ActivityModal";
 import { TaskModal } from "@/components/TaskModal";
 import { ContactFormModal } from "@/components/ContactFormModal";
+import ImportContactsModal from "@/components/ImportContactsModal";
 import { ScopeToggle, defaultScopeForRole, type Scope } from "@/components/ScopeToggle";
+import { toCsvRow } from "@/lib/csv";
 
 type Contact = {
   id: string;
@@ -45,6 +49,7 @@ export default function ContactsTable({
   const [sourceFilter, setSourceFilter] = useState("all");
   const [scope, setScope] = useState<Scope>(() => defaultScopeForRole(currentUser.role));
   const [owners, setOwners] = useState<Owner[]>([]);
+  const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
     fetch("/api/users/basic").then((r) => r.json()).then(setOwners);
@@ -71,6 +76,11 @@ export default function ContactsTable({
     setContacts((prev) => prev.filter((c) => c.id !== contact.id));
   }
 
+  async function handleImported() {
+    const res = await fetch("/api/contacts");
+    if (res.ok) setContacts(await res.json());
+  }
+
   const sourceOptions = useMemo(
     () => Array.from(new Set(contacts.map((c) => c.source ?? "unknown"))).sort(),
     [contacts]
@@ -87,6 +97,30 @@ export default function ContactsTable({
       );
     });
   }, [contacts, search, sourceFilter, scope, currentUser.id]);
+
+  const ownerMap = useMemo(() => Object.fromEntries(owners.map((o) => [o.id, o.name])), [owners]);
+
+  function handleExport() {
+    const header = ["Name", "Company", "Email", "Phone", "Source", "Owner"];
+    const body = filteredContacts.map((c) =>
+      toCsvRow([
+        c.name,
+        c.company ?? "",
+        c.email ?? "",
+        c.phone ?? "",
+        c.source ?? "",
+        c.ownerId ? ownerMap[c.ownerId] ?? "" : "",
+      ])
+    );
+    const csv = [toCsvRow(header), ...body].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <>
@@ -126,8 +160,28 @@ export default function ContactsTable({
 
         <button
           type="button"
+          onClick={handleExport}
+          disabled={filteredContacts.length === 0}
+          title="Export the contacts currently shown to CSV"
+          className="sm:ml-auto flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-sm font-medium px-3 py-2 hover:bg-[var(--surface-raised)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Download size={14} />
+          Export
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowImport(true)}
+          className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-sm font-medium px-3 py-2 hover:bg-[var(--surface-raised)] transition-colors"
+        >
+          <Upload size={14} />
+          Import
+        </button>
+
+        <button
+          type="button"
           onClick={() => setShowNewContact(true)}
-          className="sm:ml-auto flex items-center justify-center gap-1.5 rounded-lg bg-[var(--accent)] text-[var(--bg)] text-sm font-medium px-3 py-2 hover:opacity-90 transition-opacity"
+          className="flex items-center justify-center gap-1.5 rounded-lg bg-[var(--accent)] text-[var(--bg)] text-sm font-medium px-3 py-2 hover:opacity-90 transition-opacity"
         >
           <UserPlus size={14} />
           New contact
@@ -253,6 +307,9 @@ export default function ContactsTable({
           onClose={() => setEditContact(null)}
           onSaved={handleEdited}
         />
+      )}
+      {showImport && (
+        <ImportContactsModal onClose={() => setShowImport(false)} onImported={handleImported} />
       )}
       {activityContact && (
         <ActivityModal
