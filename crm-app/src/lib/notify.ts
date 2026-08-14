@@ -14,7 +14,7 @@ export async function notifyAssignment({
 }: {
   actingUserId: string;
   newOwnerId: string | null | undefined;
-  type: "deal_assigned" | "contact_assigned" | "task_assigned";
+  type: "deal_assigned" | "contact_assigned" | "task_assigned" | "bulk_reassignment";
   dealId?: string | null;
   contactId?: string | null;
   message: string;

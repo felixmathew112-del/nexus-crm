@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { ShieldCheck, UserPlus, KeyRound, X, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ShieldCheck, UserPlus, KeyRound, ArrowRightLeft, X, Loader2 } from "lucide-react";
 
 type User = { id: string; name: string; email: string; role: string | null };
 type CurrentUser = { id: string; role: string | null };
@@ -210,6 +210,135 @@ function ResetPasswordModal({
   );
 }
 
+function ReassignModal({
+  fromUser,
+  otherUsers,
+  onClose,
+  onDone,
+}: {
+  fromUser: User;
+  otherUsers: User[];
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [toUserId, setToUserId] = useState("");
+  const [counts, setCounts] = useState<{ contacts: number; deals: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<{ contacts: number; deals: number } | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/users/${fromUser.id}/reassign`)
+      .then((r) => r.json())
+      .then(setCounts);
+  }, [fromUser.id]);
+
+  const hasBook = !!counts && (counts.contacts > 0 || counts.deals > 0);
+  const canSubmit = toUserId && hasBook;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!canSubmit || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    const res = await fetch(`/api/users/${fromUser.id}/reassign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ toUserId }),
+    });
+    const body = await res.json();
+    setSubmitting(false);
+    if (!res.ok) {
+      setError(body?.error ?? "Couldn't reassign.");
+      return;
+    }
+    setResult(body);
+    onDone();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-2 mb-4">
+          <h2 className="font-display text-sm font-semibold">Reassign {fromUser.name}&apos;s book</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {result ? (
+          <div className="space-y-3">
+            <p className="text-sm">
+              Reassigned <span className="font-medium">{result.contacts}</span> contact
+              {result.contacts === 1 ? "" : "s"} and{" "}
+              <span className="font-medium">{result.deals}</span> deal
+              {result.deals === 1 ? "" : "s"}.
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full rounded-lg bg-[var(--accent)] text-[var(--bg)] text-sm font-medium py-2"
+            >
+              Done
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <p className="text-xs text-[var(--text-muted)]">
+              {counts === null
+                ? "Checking their book of business…"
+                : `Currently owns ${counts.contacts} contact${counts.contacts === 1 ? "" : "s"} and ${counts.deals} deal${counts.deals === 1 ? "" : "s"}.`}
+            </p>
+            <div>
+              <label className="block text-xs text-[var(--text-muted)] mb-1.5">
+                Move everything to
+              </label>
+              <select
+                value={toUserId}
+                onChange={(e) => setToUserId(e.target.value)}
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+              >
+                <option value="">Choose a rep…</option>
+                {otherUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {counts !== null && !hasBook && (
+              <p className="text-xs text-[var(--text-muted)]">
+                Nothing to reassign — {fromUser.name} doesn&apos;t own any contacts or deals.
+              </p>
+            )}
+            {error && <p className="text-xs text-risk">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={!canSubmit || submitting}
+              className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-[var(--accent)] text-[var(--bg)] text-sm font-medium py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submitting && <Loader2 size={14} className="animate-spin" />}
+              Reassign
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function UsersTable({
   users: initialUsers,
   currentUser,
@@ -221,6 +350,7 @@ export default function UsersTable({
   const [savingId, setSavingId] = useState<string | null>(null);
   const [showNewUser, setShowNewUser] = useState(false);
   const [resetUser, setResetUser] = useState<User | null>(null);
+  const [reassignUser, setReassignUser] = useState<User | null>(null);
 
   async function handleRoleChange(user: User, role: string) {
     const previousRole = user.role;
@@ -266,7 +396,7 @@ export default function UsersTable({
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Email</th>
               <th className="px-4 py-3 font-medium">Role</th>
-              <th className="px-4 py-3 font-medium w-10"></th>
+              <th className="px-4 py-3 font-medium w-20"></th>
             </tr>
           </thead>
           <tbody>
@@ -311,14 +441,25 @@ export default function UsersTable({
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      title="Reset password"
-                      onClick={() => setResetUser(u)}
-                      className="text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
-                    >
-                      <KeyRound size={14} />
-                    </button>
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        type="button"
+                        title="Reassign their contacts & deals"
+                        disabled={users.length < 2}
+                        onClick={() => setReassignUser(u)}
+                        className="text-[var(--text-muted)] hover:text-[var(--accent)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ArrowRightLeft size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        title="Reset password"
+                        onClick={() => setResetUser(u)}
+                        className="text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
+                      >
+                        <KeyRound size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -338,6 +479,14 @@ export default function UsersTable({
             window.alert(`Password reset for ${resetUser.name}.`);
             setResetUser(null);
           }}
+        />
+      )}
+      {reassignUser && (
+        <ReassignModal
+          fromUser={reassignUser}
+          otherUsers={users.filter((u) => u.id !== reassignUser.id)}
+          onClose={() => setReassignUser(null)}
+          onDone={() => {}}
         />
       )}
     </>
