@@ -1,4 +1,4 @@
-import { db, sqlite } from "./index";
+import { db, client } from "./index";
 import { contacts, stages, deals, tasks, activities, users } from "./schema";
 import { randomUUID } from "crypto";
 import { hashPassword } from "@/lib/password";
@@ -74,4 +74,4 @@ async function seed() {
   console.log("Seed complete.");
 }
 
-seed().then(() => sqlite.close());
+seed().then(() => client.end());

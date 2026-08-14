@@ -5,11 +5,8 @@
 /.next/
 /out/
 
-# sqlite runtime files
-*.db-shm
-*.db-wal
-
 # env files
+.env
 .env*.local
 
 # typescript

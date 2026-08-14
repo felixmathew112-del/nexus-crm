@@ -59,13 +59,13 @@ export async function POST(req: Request) {
     probability,
   };
 
-  db.transaction((tx) => {
+  await db.transaction(async (tx) => {
     for (const s of allStages) {
       if (s.order >= insertOrder) {
-        tx.update(stages).set({ order: s.order + 1 }).where(eq(stages.id, s.id)).run();
+        await tx.update(stages).set({ order: s.order + 1 }).where(eq(stages.id, s.id));
       }
     }
-    tx.insert(stages).values(newStage).run();
+    await tx.insert(stages).values(newStage);
   });
 
   return NextResponse.json(newStage, { status: 201 });
