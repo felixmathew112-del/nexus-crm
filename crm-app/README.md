@@ -1,3 +1,4 @@
+<!-- Deployed on Vercel, backed by Postgres. -->
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app), backed by Postgres via [Drizzle ORM](https://orm.drizzle.team).
 
 ## Getting Started
